@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    path: helm-guestbook
+    targetRevision: HEAD
+    helm:
+      values: |
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+              - matchExpressions:
+                - key: "karpenter.sh/nodepool"
+                  operator: In
+                  values:
+                  - "default"
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: ${ENV}  # Make sure this is correctly replaced with the actual namespace you intend to use
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - Validate=true

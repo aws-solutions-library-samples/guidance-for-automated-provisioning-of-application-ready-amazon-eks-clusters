@@ -1,0 +1,35 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: apiserver-basic-grafanadashboard
+  namespace: grafana-operator
+spec:
+  folder: "Observability Accelerator Dashboards"
+  instanceSelector:
+    matchLabels:
+      dashboards: "external-grafana"
+  url: https://raw.githubusercontent.com/aws-observability/aws-observability-accelerator/v0.2.0/artifacts/grafana-dashboards/eks/apiserver/apiserver-basic.json
+---
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: apiserver-advanced-grafanadashboard
+  namespace: grafana-operator
+spec:
+  folder: "Observability Accelerator Dashboards"
+  instanceSelector:
+    matchLabels:
+      dashboards: "external-grafana"
+  url: https://raw.githubusercontent.com/aws-observability/aws-observability-accelerator/v0.2.0/artifacts/grafana-dashboards/eks/apiserver/apiserver-advanced.json
+---
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: apiserver-troubleshooting-grafanadashboard
+  namespace: grafana-operator
+spec:
+  folder: "Observability Accelerator Dashboards"
+  instanceSelector:
+    matchLabels:
+      dashboards: "external-grafana"
+  url: https://raw.githubusercontent.com/aws-observability/aws-observability-accelerator/v0.2.0/artifacts/grafana-dashboards/eks/apiserver/apiserver-troubleshooting.json
