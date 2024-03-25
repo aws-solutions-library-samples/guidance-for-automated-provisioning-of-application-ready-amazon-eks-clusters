@@ -4,7 +4,7 @@ The EKS workload accelerator is a collection of reference implementation for Ama
 
 This is a WIP, and more reference implementations will be added.
 
-> **_NOTE:_**  Even though these reference architectures deploy a fully configured, they should treated as a starting point for building your own production ready configuration.
+> **_NOTE:_**  Even though these reference architectures deploy a fully configured environments based on Amazon EKS Clusters, they should treated as a starting point for building your own production ready configuration.
 
 ## Single Amazon EKS Cluster per environment on a single AWS Account
 Currently there's one reference implementation for customers that manages a single Amazon EKS cluster per environment, in a single Account. To get started, please refer to this specific [README](./single-account-single-cluster-multi-env/README.md)
