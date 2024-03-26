@@ -107,5 +107,21 @@ export AWS_PROFILE=default
 make ENVIRONMENT=dev MODULE=10.networking apply 
 ```
 
-### Step 4 - Cleanup
-We currently do not implement the destroy all command
+### Step 4 - Cleanup - destroy
+Be caution when using destroy to cleanup resources.
+By default, the destroy `-auto-approve` is disabled, to enable it, use the `AUTO_APPROVE=true` variable.
+
+```
+export AWS_REGION=us-east-1
+export AWS_PROFILE=default
+make ENVIRONMENT=dev MODULE=10.networking destroy AUTO_APPROVE=true 
+```
+
+#### Destroy ALL
+This will run Terraform destroy on all modules by reverse order.
+
+```
+export AWS_REGION=us-east-1
+export AWS_PROFILE=default
+make ENVIRONMENT=dev destroy-all AUTO_APPROVE=true 
+```

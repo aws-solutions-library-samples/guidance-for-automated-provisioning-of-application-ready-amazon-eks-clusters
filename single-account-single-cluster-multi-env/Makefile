@@ -10,8 +10,13 @@ VAR_FILE := $(CURDIR)/00.global/vars/$(ENVIRONMENT).tfvars
 
 MODULES = $(shell find . -type f -name "backend.tf" -exec dirname {} \; | sort -u )
 
-.PHONY: print-modules clean check-env bootstrap init-all plan-all apply-all init plan apply destroy
+ifeq ($(AUTO_APPROVE), true)
+	TF_AUTO_APPROVE := "-auto-approve"
+else
+	TF_AUTO_APPROVE := ""
+endif
 
+.PHONY: print-modules clean check-env bootstrap init-all plan-all apply-all destroy-all init plan apply destroy
 
 print-modules:
 	@for m in $(MODULES); do echo $$m; done
@@ -59,6 +64,13 @@ apply-all:
   		$(MAKE) apply MODULE=$$m || exit 1; \
   	done
 
+destroy-all: MODULES := $(shell find . -type f -name "backend.tf" -exec dirname {} \; | sort -r )
+destroy-all:
+	@for m in $(MODULES); do \
+  		$(MAKE) destroy MODULE=$$m || exit 1; \
+  	done
+
+
 init: check-env
 	@if [ -z $(MODULE) ]; then \
 		echo "MODULE was not set."; \
@@ -103,6 +115,7 @@ apply: init tf-select-ws
 destroy: init tf-select-ws
 	@echo ENVIRONMENT=$(ENVIRONMENT) MODULE=$(MODULE) terraform::destroy
 	@terraform -chdir=$(MODULE) destroy \
+	$(TF_AUTO_APPROVE) \
 	-input=false \
 	-lock=true \
 	-var-file=$(VAR_FILE) \
