@@ -4,13 +4,9 @@ data "aws_availability_zones" "available" {
   exclude_zone_ids = ["use1-az3", "usw1-az2", "cac1-az3"]
 }
 
-# data "aws_caller_identity" "current" {}
-data "aws_region" "current" {}
-
 locals {
-  environment           = var.environment == "" ? terraform.workspace : var.environment
-  name                  = "${var.vpc_name_prefix}-${local.environment}"
-  cluster_name          = "${terraform.workspace}-cluster"
+  vpc_name              = "${var.shared_config.resources_prefix}-${terraform.workspace}"
+  cluster_name          = "${var.shared_config.resources_prefix}-${terraform.workspace}"
   azs                   = slice(data.aws_availability_zones.available.names, 0, var.num_azs)
   private_subnets       = [for k, v in module.subnets.network_cidr_blocks : v if endswith(k, "/private")]
   public_subnets        = [for k, v in module.subnets.network_cidr_blocks : v if endswith(k, "/public")]
@@ -21,7 +17,7 @@ locals {
   tags = merge(
     var.tags,
     {
-      Name = local.name
+      "Environment" : terraform.workspace
     }
   )
 }
@@ -43,7 +39,7 @@ module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "5.5.2"
 
-  name = local.name
+  name = local.vpc_name
   cidr = var.vpc_cidr
   azs  = local.azs
 
@@ -71,11 +67,11 @@ module "endpoints" {
 
   vpc_id                     = module.vpc.vpc_id
   create_security_group      = true
-  security_group_name        = "${local.name}-vpc-endpoints"
-  security_group_description = "VPC Endpoint Security Group - ${local.name}"
+  security_group_name        = "${local.vpc_name}-vpc-endpoints"
+  security_group_description = "VPC Endpoint Security Group - ${local.vpc_name}"
   security_group_rules = {
     ingress_https = {
-      description = "HTTPS from VPC - ${local.name}"
+      description = "HTTPS from VPC - ${local.vpc_name}"
       cidr_blocks = [module.vpc.vpc_cidr_block]
     }
   }

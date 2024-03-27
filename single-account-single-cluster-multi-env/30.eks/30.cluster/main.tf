@@ -23,7 +23,8 @@ module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "20.8.3"
 
-  cluster_name                   = local.name
+  cluster_name = local.cluster_name
+  # cluster_name                   = local.name
   cluster_version                = local.cluster_version
   cluster_endpoint_public_access = try(!var.cluster_config.private_eks_cluster, false)
 
@@ -128,6 +129,13 @@ module "eks" {
       labels = {
         "node.kubernetes.io/component" = "management-nodes"
       }
+      taints = [
+        {
+          key    = "node.kubernetes.io/component"
+          value  = "management-nodes"
+          effect = "NO_SCHEDULE"
+        }
+      ]
     }
 
 
@@ -159,7 +167,7 @@ resource "null_resource" "update-kubeconfig" {
 resource "aws_ec2_tag" "cluster_primary_security_group" {
   resource_id = module.eks.cluster_primary_security_group_id
   key         = "karpenter.sh/discovery"
-  value       = local.name
+  value       = local.cluster_name
 }
 
 
@@ -207,10 +215,43 @@ module "eks_blueprints_addons" {
           # Reference docs https://docs.aws.amazon.com/eks/latest/userguide/cni-increase-ip-addresses.html
           ENABLE_PREFIX_DELEGATION = "true"
           WARM_PREFIX_TARGET       = "1"
-        }
+        },
+        # tolerations = [
+        #   {
+        #     key      = "node.kubernetes.io/component"
+        #     operator = "Equal"
+        #     value    = "management-nodes"
+        #     effect   = "NO_SCHEDULE"
+        #   }
+        # ]
       })
     }
-    kube-proxy = {}
+    coredns = {
+      resolve_conflicts_on_create = "OVERWRITE"
+      resolve_conflicts_on_update = "PRESERVE"
+      preserve                    = true
+      most_recent                 = true
+      configuration_values = jsonencode(
+        {
+          replicaCount : 2,
+          nodeSelector : {
+            "node.kubernetes.io/component" : "management-nodes"
+          },
+          tolerations : [
+            {
+              key : "node.kubernetes.io/component",
+              operator : "Equal",
+              value : "management-nodes",
+              effect : "NoSchedule"
+            }
+          ]
+        }
+      )
+
+    }
+    kube-proxy = {
+      most_recent = true
+    }
   }
 
   # by default, Karpenter helm chart is set to not schedule Karpenter pods, on nodes it creates,
@@ -219,6 +260,13 @@ module "eks_blueprints_addons" {
   karpenter = {
     repository_username = data.aws_ecrpublic_authorization_token.token.user_name
     repository_password = data.aws_ecrpublic_authorization_token.token.password
+    values = [
+      <<-EOT
+          tolerations:
+          - key: node.kubernetes.io/component
+            operator: Exists
+        EOT
+    ]
   }
   karpenter_node = {
     # Use static name so that it matches what is defined in `karpenter.yaml` example manifest
@@ -241,12 +289,14 @@ resource "kubectl_manifest" "karpenter_node_class" {
       role: ${module.eks_blueprints_addons.karpenter.node_iam_role_name}
       subnetSelectorTerms:
         - tags:
-            karpenter.sh/discovery: ${local.name}
+            karpenter.sh/discovery: ${local.cluster_name}
       securityGroupSelectorTerms:
         - tags:
-            karpenter.sh/discovery: ${local.name}
+            karpenter.sh/discovery: ${local.cluster_name}
       tags:
-        karpenter.sh/discovery: ${local.name}
+        karpenter.sh/discovery: ${local.cluster_name}
+        Environment: ${terraform.workspace}
+        provisioned-by: "aws-samples/terraform-workloads-ready-eks-accelerator"
   YAML
 
   depends_on = [

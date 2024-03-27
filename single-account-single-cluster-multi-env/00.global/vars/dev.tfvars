@@ -1,12 +1,13 @@
 # Dev environment variables 
 vpc_cidr = "10.1.0.0/16"
 
-
 tags = {
-  Environment    = "dev"
-  provisioned-by = "eks-accelerator-for-tf"
+  provisioned-by = "aws-samples/terraform-workloads-ready-eks-accelerator"
 }
 
+shared_config = {
+  resources_prefix = "wre" // WRE = Workload Ready EKS 
+}
 cluster_config = {
   kubernetes_version  = 1.28
   private_eks_cluster = false

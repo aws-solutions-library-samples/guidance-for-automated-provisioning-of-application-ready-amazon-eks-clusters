@@ -1,9 +1,10 @@
 locals {
-
   tags = merge(
     var.tags,
     {
+      "Environment" : terraform.workspace
     }
+
   )
 
   # The below IAM roles represent the default Kubernetes user-facing roles as documented in https://kubernetes.io/docs/reference/access-authn-authz/rbac/#user-facing-roles

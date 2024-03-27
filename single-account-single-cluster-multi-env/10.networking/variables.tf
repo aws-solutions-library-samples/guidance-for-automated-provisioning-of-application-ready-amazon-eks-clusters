@@ -1,20 +1,9 @@
-variable "environment" {
-  description = "Environment name"
-  type        = string
-  default     = ""
-}
 
 variable "vpc_cidr" {
   description = "CIDR block for the VPC"
   type        = string
   default     = "10.0.0.0/16"
 
-}
-
-variable "vpc_name_prefix" {
-  description = "Prefix for the name of the VPC"
-  type        = string
-  default     = "eks-acft"
 }
 
 variable "num_azs" {
@@ -52,6 +41,11 @@ variable "cluster_config" {
   description = "cluster configurations such as version, public/private API endpoint, and more"
   type        = map(string)
   default     = {}
+}
 
+variable "shared_config" {
+  description = "Shared configuration across all modules/folders"
+  type        = map(any)
+  default     = {}
 }
 

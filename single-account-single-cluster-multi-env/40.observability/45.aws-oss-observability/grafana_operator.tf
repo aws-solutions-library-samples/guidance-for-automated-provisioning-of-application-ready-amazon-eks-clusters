@@ -92,8 +92,9 @@ YAML
 }
 
 resource "kubectl_manifest" "secret" {
-  count     = var.observability_configuration.aws_oss_tooling && var.observability_configuration.aws_oss_tooling_config.enable_grafana_operator ? 1 : 0
-  yaml_body = <<YAML
+  depends_on = [helm_release.grafana_operator]
+  count      = var.observability_configuration.aws_oss_tooling && var.observability_configuration.aws_oss_tooling_config.enable_grafana_operator ? 1 : 0
+  yaml_body  = <<YAML
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
@@ -120,7 +121,7 @@ YAML
 
 
 resource "kubectl_manifest" "amg_remote_identity" {
-  depends_on = [module.managed_grafana]
+  depends_on = [module.managed_grafana, helm_release.grafana_operator]
   count      = var.observability_configuration.aws_oss_tooling && var.observability_configuration.aws_oss_tooling_config.enable_grafana_operator ? 1 : 0
   yaml_body = templatefile("${path.module}/grafana-operator-manifests/infrastructure/amg-grafana.yaml",
     {
@@ -132,7 +133,7 @@ resource "kubectl_manifest" "amg_remote_identity" {
 }
 
 resource "kubectl_manifest" "amp_data_source" {
-  depends_on = [module.managed_grafana]
+  depends_on = [module.managed_grafana, helm_release.grafana_operator]
   count      = var.observability_configuration.aws_oss_tooling && var.observability_configuration.aws_oss_tooling_config.enable_grafana_operator ? 1 : 0
   yaml_body = templatefile("${path.module}/grafana-operator-manifests/infrastructure/amp-datasource.yaml",
     {
@@ -149,7 +150,7 @@ data "kubectl_path_documents" "default_dashboards_manifest" {
 }
 
 resource "kubectl_manifest" "default_dashboards" {
-  depends_on = [module.managed_grafana]
+  depends_on = [module.managed_grafana, helm_release.grafana_operator]
   count      = var.observability_configuration.aws_oss_tooling && var.observability_configuration.aws_oss_tooling_config.enable_grafana_operator ? length(data.kubectl_path_documents.default_dashboards_manifest.documents) : 0
   yaml_body  = element(data.kubectl_path_documents.default_dashboards_manifest.documents, count.index)
 }

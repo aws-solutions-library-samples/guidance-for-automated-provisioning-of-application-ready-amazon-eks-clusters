@@ -1,10 +1,3 @@
-variable "domain_name" {
-  description = "The domain name for the ArgoCD server and UI"
-  type        = string
-  default     = "argocd.example.com"
-
-}
-
 variable "tags" {
   description = "Tags to apply to resources"
   type        = map(string)

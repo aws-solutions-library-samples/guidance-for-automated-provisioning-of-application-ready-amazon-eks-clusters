@@ -27,6 +27,10 @@ variable "cluster_config" {
   description = "cluster configurations such as version, public/private API endpoint, and more"
   type        = map(string)
   default     = {}
-
 }
 
+variable "shared_config" {
+  description = "Shared configuration across all modules/folders"
+  type        = map(any)
+  default     = {}
+}
