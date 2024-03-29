@@ -5,8 +5,7 @@ data "aws_availability_zones" "available" {
 }
 
 locals {
-  vpc_name              = "${var.shared_config.resources_prefix}-${terraform.workspace}"
-  cluster_name          = "${var.shared_config.resources_prefix}-${terraform.workspace}"
+  name                  = "${var.shared_config.resources_prefix}-${terraform.workspace}"
   azs                   = slice(data.aws_availability_zones.available.names, 0, var.num_azs)
   private_subnets       = [for k, v in module.subnets.network_cidr_blocks : v if endswith(k, "/private")]
   public_subnets        = [for k, v in module.subnets.network_cidr_blocks : v if endswith(k, "/public")]
@@ -17,6 +16,7 @@ locals {
   tags = merge(
     var.tags,
     {
+      "Name" : local.name,
       "Environment" : terraform.workspace
     }
   )
@@ -39,7 +39,7 @@ module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "5.5.2"
 
-  name = local.vpc_name
+  name = local.name
   cidr = var.vpc_cidr
   azs  = local.azs
 
@@ -54,7 +54,7 @@ module "vpc" {
   private_subnet_tags = {
     "kubernetes.io/role/internal-elb" = 1
     # Tags subnets for Karpenter auto-discovery
-    "karpenter.sh/discovery" = local.cluster_name
+    "karpenter.sh/discovery" = local.name
   }
 
   enable_nat_gateway = true
@@ -67,11 +67,11 @@ module "endpoints" {
 
   vpc_id                     = module.vpc.vpc_id
   create_security_group      = true
-  security_group_name        = "${local.vpc_name}-vpc-endpoints"
-  security_group_description = "VPC Endpoint Security Group - ${local.vpc_name}"
+  security_group_name        = "${local.name}-vpc-endpoints"
+  security_group_description = "VPC Endpoint Security Group - ${local.name}"
   security_group_rules = {
     ingress_https = {
-      description = "HTTPS from VPC - ${local.vpc_name}"
+      description = "HTTPS from VPC - ${local.name}"
       cidr_blocks = [module.vpc.vpc_cidr_block]
     }
   }

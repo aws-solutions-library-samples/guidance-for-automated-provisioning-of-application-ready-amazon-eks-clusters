@@ -19,13 +19,32 @@ module "eks_blueprints_addons" {
 
   # common addons deployed with EKS Blueprints Addons
   enable_aws_load_balancer_controller = true
+  aws_load_balancer_controller = {
+    values = [yamlencode(local.critical_addons_tolerations)]
+  }
 
 
   # Common addons needed for Observability Accerelrator w/ AMP (cert_manager, external secrets)
   #  ADOT will be deployed as part of the observability accelerator as it's needed specifically for AMP deployment
 
   enable_external_secrets = try(var.observability_configuration.aws_oss_tooling, false)
-  enable_cert_manager     = try(var.observability_configuration.aws_oss_tooling, false)
+  external_secrets = {
+    values = [
+      yamlencode({ "webhook" : local.critical_addons_tolerations }),
+      yamlencode({ "certController" : local.critical_addons_tolerations }),
+      yamlencode(local.critical_addons_tolerations)
+    ]
+  }
+
+  enable_cert_manager = try(var.observability_configuration.aws_oss_tooling, false)
+  cert_manager = {
+    values = [
+      yamlencode({ "webhook" : local.critical_addons_tolerations }),
+      yamlencode({ "cainjector" : local.critical_addons_tolerations }),
+      yamlencode({ "startupapicheck" : local.critical_addons_tolerations }),
+      yamlencode(local.critical_addons_tolerations)
+    ]
+  }
 
   enable_aws_for_fluentbit = try(var.observability_configuration.aws_oss_tooling, false)
   aws_for_fluentbit_cw_log_group = {
@@ -40,6 +59,7 @@ module "eks_blueprints_addons" {
   # GitOps 
   enable_argocd = true
   argocd = {
+    values  = [yamlencode({ "global" : local.critical_addons_tolerations })]
     enabled = true
     # The following settings are required to be set to true to ensure the
     # argocd application is deployed

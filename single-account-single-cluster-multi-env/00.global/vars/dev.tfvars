@@ -8,6 +8,7 @@ tags = {
 shared_config = {
   resources_prefix = "wre" // WRE = Workload Ready EKS 
 }
+
 cluster_config = {
   kubernetes_version  = 1.28
   private_eks_cluster = false

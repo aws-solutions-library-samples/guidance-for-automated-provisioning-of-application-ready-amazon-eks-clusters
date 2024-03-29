@@ -3,6 +3,15 @@ locals {
   region          = data.aws_region.current.id
   cluster_version = var.cluster_config.kubernetes_version
 
+  critical_addons_tolerations = {
+    tolerations = [
+      {
+        key      = "CriticalAddonsOnly",
+        operator = "Exists",
+        effect   = "NoSchedule"
+      }
+    ]
+  }
 
   tags = merge(
     var.tags,

@@ -5,7 +5,10 @@ resource "helm_release" "grafana_operator" {
   namespace        = var.go_config.k8s_namespace
   version          = var.go_config.helm_chart_version
   create_namespace = var.go_config.create_namespace
-  max_history      = 3
+  values = [
+    yamlencode(local.critical_addons_tolerations)
+  ]
+  max_history = 3
 }
 
 locals {
@@ -18,11 +21,6 @@ locals {
 #---------------------------------------------------------------
 # External Secrets Operator - Secret
 #---------------------------------------------------------------
-locals {
-
-  grafana_workspace_api_expiration_days    = 30
-  grafana_workspace_api_expiration_seconds = 60 * 60 * 24 * local.grafana_workspace_api_expiration_days
-}
 
 resource "aws_kms_key" "secrets" {
   count               = var.observability_configuration.aws_oss_tooling && var.observability_configuration.aws_oss_tooling_config.enable_grafana_operator ? 1 : 0
@@ -81,7 +79,7 @@ spec:
   provider:
     aws:
       service: ParameterStore
-      region: ${data.aws_region.current.name}
+      region: ${local.region}
       auth:
         jwt:
           serviceAccountRef:

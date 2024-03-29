@@ -15,6 +15,7 @@ resource "helm_release" "prometheus_node_exporter" {
     }
   }
 }
+
 resource "helm_release" "kube_state_metrics" {
   count            = var.observability_configuration.aws_oss_tooling ? 1 : 0
   chart            = var.ksm_config.helm_chart_name
@@ -23,6 +24,9 @@ resource "helm_release" "kube_state_metrics" {
   name             = var.ksm_config.helm_release_name
   version          = var.ksm_config.helm_chart_version
   repository       = var.ksm_config.helm_repo_url
+  values = [
+    yamlencode(local.critical_addons_tolerations)
+  ]
 
   dynamic "set" {
     for_each = var.ksm_config.helm_settings

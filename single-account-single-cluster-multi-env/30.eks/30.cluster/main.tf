@@ -23,8 +23,7 @@ module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "20.8.3"
 
-  cluster_name = local.cluster_name
-  # cluster_name                   = local.name
+  cluster_name                   = local.cluster_name
   cluster_version                = local.cluster_version
   cluster_endpoint_public_access = try(!var.cluster_config.private_eks_cluster, false)
 
@@ -105,17 +104,14 @@ module "eks" {
 
   # managed node group for base EKS addons such as Karpenter 
   eks_managed_node_group_defaults = {
-    instance_types = ["m6i.large", "m5.large", "m5n.large", "m5zn.large"]
+    instance_types = ["m6i.large", "m5.large"]
     iam_role_additional_policies = {
       SSM = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
     }
   }
   eks_managed_node_groups = {
-    mgmt-nodes = {
-      node_group_name = "managed-ondemand"
-      use_name_prefix = true
-
-      # create_security_group = false
+    "${local.cluster_name}-criticaladdons" = {
+#      use_name_prefix = true
 
       subnet_ids   = data.terraform_remote_state.vpc.outputs.private_subnet_ids
       max_size     = 5
@@ -126,22 +122,19 @@ module "eks" {
       # create_launch_template = true              # false will use the default launch template
       # launch_template_os     = "amazonlinux2eks" # amazonlinux2eks or bottlerocket
 
-      labels = {
-        "node.kubernetes.io/component" = "management-nodes"
-      }
-      taints = [
-        {
-          key    = "node.kubernetes.io/component"
-          value  = "management-nodes"
+#      labels = {
+#        "node.kubernetes.io/component" = "management-nodes"
+#      }
+      taints = {
+        critical_addons = {
+          key    = "CriticalAddonsOnly"
           effect = "NO_SCHEDULE"
         }
-      ]
+      }
     }
-
 
   }
   tags = local.tags
-
 
 }
 
@@ -234,17 +227,10 @@ module "eks_blueprints_addons" {
       configuration_values = jsonencode(
         {
           replicaCount : 2,
-          nodeSelector : {
-            "node.kubernetes.io/component" : "management-nodes"
-          },
-          tolerations : [
-            {
-              key : "node.kubernetes.io/component",
-              operator : "Equal",
-              value : "management-nodes",
-              effect : "NoSchedule"
-            }
-          ]
+#          nodeSelector : {
+#            "node.kubernetes.io/component" : "management-nodes"
+#          },
+          tolerations : [local.critical_addons_tolerations.tolerations[0]]
         }
       )
 
@@ -260,13 +246,7 @@ module "eks_blueprints_addons" {
   karpenter = {
     repository_username = data.aws_ecrpublic_authorization_token.token.user_name
     repository_password = data.aws_ecrpublic_authorization_token.token.password
-    values = [
-      <<-EOT
-          tolerations:
-          - key: node.kubernetes.io/component
-            operator: Exists
-        EOT
-    ]
+    values = [yamlencode(local.critical_addons_tolerations)]
   }
   karpenter_node = {
     # Use static name so that it matches what is defined in `karpenter.yaml` example manifest
