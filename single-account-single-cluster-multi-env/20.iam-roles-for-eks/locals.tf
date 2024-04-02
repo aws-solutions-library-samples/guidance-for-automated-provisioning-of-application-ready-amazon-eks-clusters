@@ -3,10 +3,11 @@ locals {
     var.tags,
     {
       "Environment" : terraform.workspace
+      "provisioned-by" : "aws-samples/terraform-workloads-ready-eks-accelerator"
     }
 
   )
-
+  name = "${var.shared_config.resources_prefix}-${terraform.workspace}"
   # The below IAM roles represent the default Kubernetes user-facing roles as documented in https://kubernetes.io/docs/reference/access-authn-authz/rbac/#user-facing-roles
   #  and as supported by Amazon EKS Cluster Access Management 
   iam_roles = {

@@ -111,7 +111,7 @@ module "eks" {
   }
   eks_managed_node_groups = {
     "${local.cluster_name}-criticaladdons" = {
-#      use_name_prefix = true
+      #      use_name_prefix = true
 
       subnet_ids   = data.terraform_remote_state.vpc.outputs.private_subnet_ids
       max_size     = 5
@@ -122,9 +122,9 @@ module "eks" {
       # create_launch_template = true              # false will use the default launch template
       # launch_template_os     = "amazonlinux2eks" # amazonlinux2eks or bottlerocket
 
-#      labels = {
-#        "node.kubernetes.io/component" = "management-nodes"
-#      }
+      #      labels = {
+      #        "node.kubernetes.io/component" = "management-nodes"
+      #      }
       taints = {
         critical_addons = {
           key    = "CriticalAddonsOnly"
@@ -227,9 +227,9 @@ module "eks_blueprints_addons" {
       configuration_values = jsonencode(
         {
           replicaCount : 2,
-#          nodeSelector : {
-#            "node.kubernetes.io/component" : "management-nodes"
-#          },
+          #          nodeSelector : {
+          #            "node.kubernetes.io/component" : "management-nodes"
+          #          },
           tolerations : [local.critical_addons_tolerations.tolerations[0]]
         }
       )
@@ -246,7 +246,7 @@ module "eks_blueprints_addons" {
   karpenter = {
     repository_username = data.aws_ecrpublic_authorization_token.token.user_name
     repository_password = data.aws_ecrpublic_authorization_token.token.password
-    values = [yamlencode(local.critical_addons_tolerations)]
+    values              = [yamlencode(local.critical_addons_tolerations)]
   }
   karpenter_node = {
     # Use static name so that it matches what is defined in `karpenter.yaml` example manifest

@@ -18,6 +18,7 @@ locals {
     {
       "Name" : local.name,
       "Environment" : terraform.workspace
+      "provisioned-by" : "aws-samples/terraform-workloads-ready-eks-accelerator"
     }
   )
 }

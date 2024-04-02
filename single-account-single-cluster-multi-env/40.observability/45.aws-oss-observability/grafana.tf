@@ -56,8 +56,8 @@ resource "aws_identitystore_user" "user" {
   count             = var.observability_configuration.aws_oss_tooling ? 1 : 0
   identity_store_id = tolist(data.aws_ssoadmin_instances.current.identity_store_ids)[0]
 
-  display_name = "Grafana Admin"
-  user_name    = "grafana-admin"
+  display_name = "Grafana Admin for ${terraform.workspace} env"
+  user_name    = "grafana-admin-${terraform.workspace}"
 
 
   name {
