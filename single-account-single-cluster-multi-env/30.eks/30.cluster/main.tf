@@ -224,7 +224,6 @@ module "eks_blueprints_addons" {
     repository_username = data.aws_ecrpublic_authorization_token.token.user_name
     repository_password = data.aws_ecrpublic_authorization_token.token.password
     namespace           = "kube-system"
-    chart_version       = "0.35.4"
     values              = [yamlencode(local.critical_addons_tolerations)]
   }
   karpenter_node = {
