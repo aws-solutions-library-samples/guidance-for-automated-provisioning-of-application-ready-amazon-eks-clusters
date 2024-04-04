@@ -111,20 +111,11 @@ module "eks" {
   }
   eks_managed_node_groups = {
     "${local.cluster_name}-criticaladdons" = {
-      #      use_name_prefix = true
-
       subnet_ids   = data.terraform_remote_state.vpc.outputs.private_subnet_ids
       max_size     = 5
       desired_size = 2
       min_size     = 2
 
-      # Launch template configuration
-      # create_launch_template = true              # false will use the default launch template
-      # launch_template_os     = "amazonlinux2eks" # amazonlinux2eks or bottlerocket
-
-      #      labels = {
-      #        "node.kubernetes.io/component" = "management-nodes"
-      #      }
       taints = {
         critical_addons = {
           key    = "CriticalAddonsOnly"
@@ -195,9 +186,6 @@ module "eks_blueprints_addons" {
   create_delay_dependencies = [for prof in module.eks.fargate_profiles : prof.fargate_profile_arn]
 
   eks_addons = {
-    # coredns = {
-    #   //TODO - add local DNS CACHE 
-    # }
     vpc-cni = {
       # Specify the VPC CNI addon should be deployed before compute to ensure
       # the addon is configured before data plane compute resources are created
@@ -205,18 +193,11 @@ module "eks_blueprints_addons" {
       most_recent    = true # To ensure access to the latest settings provided
       configuration_values = jsonencode({
         env = {
-          # Reference docs https://docs.aws.amazon.com/eks/latest/userguide/cni-increase-ip-addresses.html
-          ENABLE_PREFIX_DELEGATION = "true"
-          WARM_PREFIX_TARGET       = "1"
-        },
-        # tolerations = [
-        #   {
-        #     key      = "node.kubernetes.io/component"
-        #     operator = "Equal"
-        #     value    = "management-nodes"
-        #     effect   = "NO_SCHEDULE"
-        #   }
-        # ]
+          ENABLE_PREFIX_DELEGATION = "false"
+          WARM_ENI_TARGET          = "0"
+          MINIMUM_IP_TARGET        = "10"
+          WARM_IP_TARGET           = "5"
+        }
       })
     }
     coredns = {
@@ -227,13 +208,9 @@ module "eks_blueprints_addons" {
       configuration_values = jsonencode(
         {
           replicaCount : 2,
-          #          nodeSelector : {
-          #            "node.kubernetes.io/component" : "management-nodes"
-          #          },
           tolerations : [local.critical_addons_tolerations.tolerations[0]]
         }
       )
-
     }
     kube-proxy = {
       most_recent = true
@@ -258,64 +235,17 @@ module "eks_blueprints_addons" {
   depends_on = [module.eks]
 }
 
-resource "kubectl_manifest" "karpenter_node_class" {
-  yaml_body = <<-YAML
-    apiVersion: karpenter.k8s.aws/v1beta1
-    kind: EC2NodeClass
-    metadata:
-      name: default
-    spec:
-      amiFamily: AL2
-      role: ${module.eks_blueprints_addons.karpenter.node_iam_role_name}
-      subnetSelectorTerms:
-        - tags:
-            karpenter.sh/discovery: ${local.cluster_name}
-      securityGroupSelectorTerms:
-        - tags:
-            karpenter.sh/discovery: ${local.cluster_name}
-      tags:
-        karpenter.sh/discovery: ${local.cluster_name}
-        Environment: ${terraform.workspace}
-        provisioned-by: "aws-samples/terraform-workloads-ready-eks-accelerator"
-  YAML
-
-  depends_on = [
-    module.eks_blueprints_addons
-  ]
+data "kubectl_path_documents" "karpenter_manifests" {
+  pattern = "${path.module}/karpenter/*.yaml"
+  vars = {
+    role         = module.eks_blueprints_addons.karpenter.node_iam_role_name
+    cluster_name = local.cluster_name
+    environment  = terraform.workspace
+  }
 }
 
-resource "kubectl_manifest" "karpenter_node_pool" {
-  yaml_body = <<-YAML
-    apiVersion: karpenter.sh/v1beta1
-    kind: NodePool
-    metadata:
-      name: default
-    spec:
-      template:
-        metadata:
-          labels:
-            intent: apps
-        spec:
-          nodeClassRef:
-            name: default
-          requirements:
-            - key: kubernetes.io/arch
-              operator: In
-              values: ["amd64"]
-            - key: "karpenter.k8s.aws/instance-category"
-              operator: In
-              values: ["c", "m", "r", "t"]
-            - key: "karpenter.k8s.aws/instance-cpu"
-              operator: In
-              values: ["4", "8", "16", "32", "64", "96", "128"]
-      limits:
-        cpu: 1000
-      disruption:
-        consolidationPolicy: WhenEmpty
-        consolidateAfter: 30s
-  YAML
-
-  depends_on = [
-    kubectl_manifest.karpenter_node_class
-  ]
+resource "kubectl_manifest" "karpenter_manifests" {
+  for_each   = toset(data.kubectl_path_documents.karpenter_manifests.documents)
+  yaml_body  = each.value
+  depends_on = [module.eks_blueprints_addons]
 }
