@@ -8,7 +8,7 @@ locals {
 
 module "eks_blueprints_addons" {
   source  = "aws-ia/eks-blueprints-addons/aws"
-  version = "~> 1.16.1"
+  version = "~> 1.16.2"
 
   cluster_name      = data.terraform_remote_state.eks.outputs.cluster_name
   cluster_endpoint  = data.terraform_remote_state.eks.outputs.cluster_endpoint

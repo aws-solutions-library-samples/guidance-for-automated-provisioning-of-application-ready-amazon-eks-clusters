@@ -175,7 +175,7 @@ resource "aws_eks_access_entry" "karpenter_node" {
 
 module "eks_blueprints_addons" {
   source  = "aws-ia/eks-blueprints-addons/aws"
-  version = "~> 1.15.1"
+  version = "~> 1.16.2"
 
   cluster_name      = module.eks.cluster_name
   cluster_endpoint  = module.eks.cluster_endpoint
@@ -223,6 +223,8 @@ module "eks_blueprints_addons" {
   karpenter = {
     repository_username = data.aws_ecrpublic_authorization_token.token.user_name
     repository_password = data.aws_ecrpublic_authorization_token.token.password
+    namespace           = "kube-system"
+    chart_version       = "0.35.4"
     values              = [yamlencode(local.critical_addons_tolerations)]
   }
   karpenter_node = {
