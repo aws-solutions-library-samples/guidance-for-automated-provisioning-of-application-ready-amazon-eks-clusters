@@ -89,7 +89,6 @@ terraform apply -var-file="../../00.global/vars/dev.tfvars"
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
-| <a name="input_domain_name"></a> [domain\_name](#input\_domain\_name) | The domain name for the ArgoCD server and UI | `string` | `"argocd.example.com"` | no |
 | <a name="input_observability_configuration"></a> [observability\_configuration](#input\_observability\_configuration) | observability configuration variable | <pre>object({<br>    aws_oss_tooling        = optional(bool, true)  // AMP & AMG<br>    aws_native_tooling     = optional(bool, false) // CW<br>    aws_oss_tooling_config = optional(map(any), {})<br>  })</pre> | n/a | yes |
 | <a name="input_tags"></a> [tags](#input\_tags) | Tags to apply to resources | `map(string)` | `{}` | no |
 

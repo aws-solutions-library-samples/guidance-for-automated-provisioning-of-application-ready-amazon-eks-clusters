@@ -4,13 +4,8 @@ data "aws_availability_zones" "available" {
   exclude_zone_ids = ["use1-az3", "usw1-az2", "cac1-az3"]
 }
 
-# data "aws_caller_identity" "current" {}
-data "aws_region" "current" {}
-
 locals {
-  environment           = var.environment == "" ? terraform.workspace : var.environment
-  name                  = "${var.vpc_name_prefix}-${local.environment}"
-  cluster_name          = "${terraform.workspace}-cluster"
+  name                  = "${var.shared_config.resources_prefix}-${terraform.workspace}"
   azs                   = slice(data.aws_availability_zones.available.names, 0, var.num_azs)
   private_subnets       = [for k, v in module.subnets.network_cidr_blocks : v if endswith(k, "/private")]
   public_subnets        = [for k, v in module.subnets.network_cidr_blocks : v if endswith(k, "/public")]
@@ -21,7 +16,9 @@ locals {
   tags = merge(
     var.tags,
     {
-      Name = local.name
+      "Name" : local.name,
+      "Environment" : terraform.workspace
+      "provisioned-by" : "aws-samples/terraform-workloads-ready-eks-accelerator"
     }
   )
 }
@@ -58,7 +55,7 @@ module "vpc" {
   private_subnet_tags = {
     "kubernetes.io/role/internal-elb" = 1
     # Tags subnets for Karpenter auto-discovery
-    "karpenter.sh/discovery" = local.cluster_name
+    "karpenter.sh/discovery" = local.name
   }
 
   enable_nat_gateway = true

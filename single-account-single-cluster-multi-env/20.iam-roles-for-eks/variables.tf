@@ -6,3 +6,9 @@ variable "tags" {
   }
 }
 
+
+variable "shared_config" {
+  description = "Shared configuration across all modules/folders"
+  type        = map(any)
+  default     = {}
+}

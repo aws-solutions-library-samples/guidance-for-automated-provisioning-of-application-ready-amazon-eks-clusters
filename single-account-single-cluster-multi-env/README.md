@@ -9,6 +9,10 @@ This reference implementation is designed to deploy a single Amazon EKS cluster 
 * Application/s that can be deployed in a single cluster
 * A business unit within the organization that needs to deploy a multi-environment cluster for its specific workloads
 
+## Architecture Diagram 
+
+![architecture diagram](https://lucid.app/publicSegments/view/cca79846-a08c-4f72-84e3-df524efc409f/image.png)
+
 ## Capabilities deployed in this reference implementation
 
 This pattern deploy the following resources per environment in a single account:
@@ -125,3 +129,34 @@ export AWS_REGION=us-east-1
 export AWS_PROFILE=default
 make ENVIRONMENT=dev destroy-all AUTO_APPROVE=true 
 ```
+
+## Architecture Decisions  
+
+### Global variable file per environment
+
+#### Context
+
+This pattern can deploy the same configuration to multiple environments. There's a need to customize environment specific configurations to support gradual updates, or per-environment specific configuration. 
+
+#### Decision
+
+This pattern standardize on a shared Terraform variable file per environment which is used in the CLI (see Makefile as it wraps the CLI commands) to use this file throughout multiple folder configurations.
+
+#### Consequences
+
+This decision help us share the variables across the different folders, and standardize on variable naming and values
+
+### Storing Environment specific state using Terraform Workspaces
+
+https://developer.hashicorp.com/terraform/tutorials/automation/automate-terraform#multi-environment-deployment
+#### Context
+
+To keep the IaC code DRY, the state of the different resources needs to be kept in the context of an environment, so other configurations in different folders will be able to access the outputs of the right environment.
+
+#### Decision
+
+This pattern uses Terraform Workspaces to store and retrieve environment specific state from the S3 Backend being used as the remote state backend. Per Hashicorp recommendations on ["Multi-Environment Deployment"](https://developer.hashicorp.com/terraform/tutorials/automation/automate-terraform#multi-environment-deployment), it's encouraged to use Terraform workspaces to manage multiple environments: "Where possible, it's recommended to use a single backend configuration for all environments and use the terraform workspace command to switch between workspaces"
+
+#### Consequences
+
+The uses of Terraform workspaces allows us to use the same IaC code and backend configuration, without changing it per environment. As this project Makefile wraps the relevant workspaces commands, if users choose to rewrite their own CLI automation, they'll need to handle workspace switching before applying per-environment configuration.

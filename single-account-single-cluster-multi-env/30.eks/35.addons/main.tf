@@ -1,60 +1,14 @@
 data "aws_region" "current" {}
-provider "aws" {
-  default_tags {
-    tags = local.tags
-  }
-}
 
 data "aws_caller_identity" "current" {}
-provider "helm" {
-  kubernetes {
-    host                   = data.terraform_remote_state.eks.outputs.cluster_endpoint
-    cluster_ca_certificate = base64decode(data.terraform_remote_state.eks.outputs.cluster_certificate_authority_data)
-
-    exec {
-      api_version = "client.authentication.k8s.io/v1beta1"
-      command     = "aws"
-      # This requires the awscli to be installed locally where Terraform is executed
-      args = ["eks", "get-token", "--cluster-name", data.terraform_remote_state.eks.outputs.cluster_name, "--region", local.region]
-
-    }
-  }
-}
-
-
-provider "kubectl" {
-  apply_retry_count      = 5
-  host                   = data.terraform_remote_state.eks.outputs.cluster_endpoint
-  cluster_ca_certificate = base64decode(data.terraform_remote_state.eks.outputs.cluster_certificate_authority_data)
-  load_config_file       = false
-
-  exec {
-    api_version = "client.authentication.k8s.io/v1beta1"
-    command     = "aws"
-    # This requires the awscli to be installed locally where Terraform is executed
-    args = ["eks", "get-token", "--cluster-name", data.terraform_remote_state.eks.outputs.cluster_name, "--region", local.region]
-
-  }
-}
-provider "kubernetes" {
-  host                   = data.terraform_remote_state.eks.outputs.cluster_endpoint
-  cluster_ca_certificate = base64decode(data.terraform_remote_state.eks.outputs.cluster_certificate_authority_data)
-
-  exec {
-    api_version = "client.authentication.k8s.io/v1beta1"
-    command     = "aws"
-    # This requires the awscli to be installed locally where Terraform is executed
-    args = ["eks", "get-token", "--cluster-name", data.terraform_remote_state.eks.outputs.cluster_name, "--region", local.region]
-  }
-}
 
 locals {
-  environment = terraform.workspace
-  region      = data.aws_region.current.id
+  region = data.aws_region.current.id
 }
+
 module "eks_blueprints_addons" {
   source  = "aws-ia/eks-blueprints-addons/aws"
-  version = "~> 1.16.1"
+  version = "~> 1.16.2"
 
   cluster_name      = data.terraform_remote_state.eks.outputs.cluster_name
   cluster_endpoint  = data.terraform_remote_state.eks.outputs.cluster_endpoint
@@ -65,15 +19,23 @@ module "eks_blueprints_addons" {
 
   # common addons deployed with EKS Blueprints Addons
   enable_aws_load_balancer_controller = true
-
+  aws_load_balancer_controller = {
+    values = [yamlencode(local.critical_addons_tolerations)]
+  }
 
   # Common addons needed for Observability Accerelrator w/ AMP (cert_manager, external secrets)
   #  ADOT will be deployed as part of the observability accelerator as it's needed specifically for AMP deployment
 
   enable_external_secrets = try(var.observability_configuration.aws_oss_tooling, false)
-  enable_cert_manager     = try(var.observability_configuration.aws_oss_tooling, false)
+
+  enable_cert_manager = try(var.observability_configuration.aws_oss_tooling, false)
 
   enable_aws_for_fluentbit = try(var.observability_configuration.aws_oss_tooling, false)
+  aws_for_fluentbit = {
+    values = [
+      yamlencode({ "tolerations" : [{ "operator" : "Exists" }] })
+    ]
+  }
   aws_for_fluentbit_cw_log_group = {
     name            = "/aws/eks/${data.terraform_remote_state.eks.outputs.cluster_name}/aws-fluentbit-logs"
     use_name_prefix = false
@@ -93,11 +55,7 @@ module "eks_blueprints_addons" {
     create_kubernetes_resources = true
     enable_argocd               = true
     argocd_namespace            = "argocd"
-    /*values = [templatefile("values.yaml", {
-      ENV     = local.environment
-      FQDN    = var.domain_name
-      LB_NAME = "test-public-application"
-    })]*/
+
   }
 }
 
@@ -120,18 +78,4 @@ resource "null_resource" "clean_up_argocd_resources" {
     when        = destroy
   }
 }
-
-# # ArgoCD Application example
-# resource "kubectl_manifest" "argocd_app" {
-#   yaml_body = templatefile("app_example/app_manifest.yaml", {
-#     ENV = local.environment
-#   })
-# }
-
-# resource "kubernetes_namespace" "dev" {
-#   metadata {
-#     name = "dev"
-#   }
-# }
-
 

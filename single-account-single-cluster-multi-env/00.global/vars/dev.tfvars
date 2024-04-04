@@ -1,10 +1,12 @@
 # Dev environment variables 
 vpc_cidr = "10.1.0.0/16"
 
-
+# custom tags to apply to all resources
 tags = {
-  Environment    = "dev"
-  provisioned-by = "eks-accelerator-for-tf"
+}
+
+shared_config = {
+  resources_prefix = "wre" // WRE = Workload Ready EKS 
 }
 
 cluster_config = {

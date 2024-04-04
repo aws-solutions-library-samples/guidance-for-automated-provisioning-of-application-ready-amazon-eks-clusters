@@ -5,7 +5,10 @@ resource "helm_release" "grafana_operator" {
   namespace        = var.go_config.k8s_namespace
   version          = var.go_config.helm_chart_version
   create_namespace = var.go_config.create_namespace
-  max_history      = 3
+  values = [
+    yamlencode(local.critical_addons_tolerations)
+  ]
+  max_history = 3
 }
 
 locals {
@@ -18,11 +21,6 @@ locals {
 #---------------------------------------------------------------
 # External Secrets Operator - Secret
 #---------------------------------------------------------------
-locals {
-
-  grafana_workspace_api_expiration_days    = 30
-  grafana_workspace_api_expiration_seconds = 60 * 60 * 24 * local.grafana_workspace_api_expiration_days
-}
 
 resource "aws_kms_key" "secrets" {
   count               = var.observability_configuration.aws_oss_tooling && var.observability_configuration.aws_oss_tooling_config.enable_grafana_operator ? 1 : 0
@@ -81,7 +79,7 @@ spec:
   provider:
     aws:
       service: ParameterStore
-      region: ${data.aws_region.current.name}
+      region: ${local.region}
       auth:
         jwt:
           serviceAccountRef:
@@ -92,8 +90,9 @@ YAML
 }
 
 resource "kubectl_manifest" "secret" {
-  count     = var.observability_configuration.aws_oss_tooling && var.observability_configuration.aws_oss_tooling_config.enable_grafana_operator ? 1 : 0
-  yaml_body = <<YAML
+  depends_on = [helm_release.grafana_operator]
+  count      = var.observability_configuration.aws_oss_tooling && var.observability_configuration.aws_oss_tooling_config.enable_grafana_operator ? 1 : 0
+  yaml_body  = <<YAML
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
@@ -120,7 +119,7 @@ YAML
 
 
 resource "kubectl_manifest" "amg_remote_identity" {
-  depends_on = [module.managed_grafana]
+  depends_on = [module.managed_grafana, helm_release.grafana_operator]
   count      = var.observability_configuration.aws_oss_tooling && var.observability_configuration.aws_oss_tooling_config.enable_grafana_operator ? 1 : 0
   yaml_body = templatefile("${path.module}/grafana-operator-manifests/infrastructure/amg-grafana.yaml",
     {
@@ -132,7 +131,7 @@ resource "kubectl_manifest" "amg_remote_identity" {
 }
 
 resource "kubectl_manifest" "amp_data_source" {
-  depends_on = [module.managed_grafana]
+  depends_on = [module.managed_grafana, helm_release.grafana_operator]
   count      = var.observability_configuration.aws_oss_tooling && var.observability_configuration.aws_oss_tooling_config.enable_grafana_operator ? 1 : 0
   yaml_body = templatefile("${path.module}/grafana-operator-manifests/infrastructure/amp-datasource.yaml",
     {
@@ -149,7 +148,7 @@ data "kubectl_path_documents" "default_dashboards_manifest" {
 }
 
 resource "kubectl_manifest" "default_dashboards" {
-  depends_on = [module.managed_grafana]
+  depends_on = [module.managed_grafana, helm_release.grafana_operator]
   count      = var.observability_configuration.aws_oss_tooling && var.observability_configuration.aws_oss_tooling_config.enable_grafana_operator ? length(data.kubectl_path_documents.default_dashboards_manifest.documents) : 0
   yaml_body  = element(data.kubectl_path_documents.default_dashboards_manifest.documents, count.index)
 }

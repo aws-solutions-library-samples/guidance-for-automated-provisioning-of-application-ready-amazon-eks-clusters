@@ -1,14 +1,6 @@
 # Data block to fetch the SSO admin instance. Once you enabled SSO admin from console, you need data block to fetch this in your code.
 data "aws_ssoadmin_instances" "current" {}
 
-locals {
-  grafana_workspace_name        = "grafana-${terraform.workspace}"
-  grafana_workspace_description = join("", ["Amazon Managed Grafana workspace for ${terraform.workspace}"])
-  # grafana_workspace_description = join("", ["Amazon Managed Grafana workspace for ${terraform.workspace}", uuid()])
-
-
-}
-
 module "managed_grafana" {
   count   = var.observability_configuration.aws_oss_tooling ? 1 : 0
   source  = "terraform-aws-modules/managed-service-grafana/aws"
@@ -64,8 +56,8 @@ resource "aws_identitystore_user" "user" {
   count             = var.observability_configuration.aws_oss_tooling ? 1 : 0
   identity_store_id = tolist(data.aws_ssoadmin_instances.current.identity_store_ids)[0]
 
-  display_name = "Grafana Admin"
-  user_name    = "grafana-admin"
+  display_name = "Grafana Admin for ${terraform.workspace} env"
+  user_name    = "grafana-admin-${terraform.workspace}"
 
 
   name {

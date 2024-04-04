@@ -27,7 +27,6 @@
 | Name | Type |
 |------|------|
 | [aws_availability_zones.available](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/availability_zones) | data source |
-| [aws_region.current](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/region) | data source |
 
 ## Inputs
 
@@ -35,13 +34,12 @@
 |------|-------------|------|---------|:--------:|
 | <a name="input_cluster_config"></a> [cluster\_config](#input\_cluster\_config) | cluster configurations such as version, public/private API endpoint, and more | `map(string)` | `{}` | no |
 | <a name="input_control_plane_subnets_cidr_prefix"></a> [control\_plane\_subnets\_cidr\_prefix](#input\_control\_plane\_subnets\_cidr\_prefix) | CIDR prefix for the control plane subnets | `number` | `28` | no |
-| <a name="input_environment"></a> [environment](#input\_environment) | Environment name | `string` | `""` | no |
 | <a name="input_num_azs"></a> [num\_azs](#input\_num\_azs) | Number of Availability Zones | `number` | `3` | no |
 | <a name="input_private_subnets_cidr_prefix"></a> [private\_subnets\_cidr\_prefix](#input\_private\_subnets\_cidr\_prefix) | CIDR prefix for the private subnets | `number` | `20` | no |
 | <a name="input_public_subnets_cidr_prefix"></a> [public\_subnets\_cidr\_prefix](#input\_public\_subnets\_cidr\_prefix) | CIDR prefix for the public subnets | `number` | `24` | no |
+| <a name="input_shared_config"></a> [shared\_config](#input\_shared\_config) | Shared configuration across all modules/folders | `map(any)` | `{}` | no |
 | <a name="input_tags"></a> [tags](#input\_tags) | Additional tags | `map(string)` | `{}` | no |
 | <a name="input_vpc_cidr"></a> [vpc\_cidr](#input\_vpc\_cidr) | CIDR block for the VPC | `string` | `"10.0.0.0/16"` | no |
-| <a name="input_vpc_name_prefix"></a> [vpc\_name\_prefix](#input\_vpc\_name\_prefix) | Prefix for the name of the VPC | `string` | `"eks-acft"` | no |
 
 ## Outputs
 
