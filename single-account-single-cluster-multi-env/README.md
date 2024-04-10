@@ -1,5 +1,11 @@
 # Single Cluster / Single Environment / Single Account
 
+## Table of content
+* [Design Considerations](#design-considerations)
+* [Architecture diagram](#architecture-diagram)
+* [Capabilities deployed](#capabilities-deployed-in-this-reference-implementation)
+* [Deploying the pattern](#deploying-the-pattern)
+* [Architecture Decisions](#architecture-decisions)
 
 ## Design considerations 
 
@@ -26,13 +32,13 @@ See networking [README](./10.networking/README.md) for detailed configuration
 * Access Management capabilities - provisioning set of default [user-facing roles](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#user-facing-roles) that are used to access the Amazon EKS  cluster 
 See "IAM Roles for EKS" [README](./20.iam-roles-for-eks/README.md) for detailed configuration
 * Amazon EKS Cluster - configured with set of defaults (described in the EKS Cluster README) alongside with a baseline set of Amazon EKS add-ons that are needed for a minimal functionality (including Karpenter for node provisioning). 
-See EKS Cluster [README](./40.eks/40.cluster/README.md) for detailed configuration
+See EKS Cluster [README](./30.eks/30.cluster/README.md) for detailed configuration
 
 * EKS Blueprints addons - The intent of this folder is to provision the relevant addons, based on enabled capabilities configured for this reference implementation.
-See EKS Cluster [README](./40.eks/45.addons/README.md) for detailed configuration
+See EKS Cluster [README](./30.eks/35.addons/README.md) for detailed configuration
 
 * Observability capabilities - based on the observability configuration, this part deploys the relevant AWS Services and addons into your cluster with a ready-to-use base to observe applications deployed to the cluster. Currently it supports the following configurations:
-  * AWS OSS observability services stack (see AWS OSS [README](./50.observability/55.aws-oss-observability/README.md) folder for detailed configuration) which includes:
+  * AWS OSS observability services stack (see AWS OSS [README](./40.observability/45.aws-oss-observability/README.md) folder for detailed configuration) which includes:
     * Amazon Managed Service for Prometheus - a serverless, Prometheus-compatible monitoring service for container metrics.
     * Amazon Managed Grafana - a data visualization for your operational metrics, logs, and traces
     * AWS Managed scraper for AMP that scrape metrics from your Amazon EKS cluster directly to an AMP workspace
