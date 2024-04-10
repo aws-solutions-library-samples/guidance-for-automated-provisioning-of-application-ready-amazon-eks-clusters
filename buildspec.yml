@@ -2,16 +2,22 @@ version: 0.2
 
 phases:
   install:
-    runtime-versions:
-      python: 3.8
     commands:
       - echo "Updating OS packages and installing necessary tools..."
       - apt-get install -y unzip jq curl make bash
+      - echo "Fetching the latest Terraform version..."
+      - echo "Fetching the latest Terraform version..."
+      - "curl -s -qL -o terraform.zip https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip"
+      - "unzip -o terraform.zip"
+      - "mv terraform /bin"
+      - "rm terraform.zip"
+      - terraform version
       - echo "Verifying installations..."
       - bash --version
       - make --version
       - echo "AWS CLI Version:"
       - aws --version
+      - aws configure set output json --profile default
 
   pre_build:
     commands:
@@ -20,7 +26,7 @@ phases:
       - echo "Deploying Terraform resources for state management..."
       - set -ex
       - codebuild-breakpoint
-      - /bin/bash -c "set -o pipefail && make bootstrap"
+      - make bootstrap"
 
   build:
     commands:
@@ -31,7 +37,7 @@ phases:
       - cd ../../  # Navigate back to the root of the Terraform directory
       - set -ex
       - codebuild-breakpoint
-      - /bin/bash -c "set -o pipefail && make bootstrap"
+      - make bootstrap"
 
   post_build:
     commands:
@@ -45,4 +51,6 @@ artifacts:
 env:
   variables:
     AWS_REGION: "eu-central-1"
+    AWS_PROFILE: "default"
     ENVIRONMENT: "dev"  # You can adjust this as needed
+    TF_VERSION: "1.8.0"

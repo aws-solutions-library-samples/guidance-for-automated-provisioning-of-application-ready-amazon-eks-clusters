@@ -38,6 +38,10 @@ resource "aws_codebuild_project" "terraform_build" {
       name  = "AWS_REGION"
       value = "eu-central-1"
     }
+    environment_variable {
+      name  = "AWS_PROFILE"
+      value = "default"
+    }
   }
 
   source {
@@ -86,6 +90,13 @@ resource "aws_iam_role" "codepipeline_role" {
           Service = "codepipeline.amazonaws.com"
         }
       },
+      {
+        "Effect" : "Allow",
+        "Principal" : {
+          "Service" : "codebuild.amazonaws.com"
+        },
+        "Action" : "sts:AssumeRole"
+      }
     ]
   })
 }
@@ -164,4 +175,55 @@ resource "aws_iam_policy_attachment" "codebuild_logs_attachment" {
   name       = "${var.project_name}-codebuild-logs-attachment"
   roles      = [aws_iam_role.codebuild_role.name]
   policy_arn = aws_iam_policy.codebuild_cloudwatch_logs.arn
+}
+
+# IAM Policy for S3 Access
+resource "aws_iam_policy" "codebuild_s3_access" {
+  name = "${var.project_name}-codebuild-s3-access"
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "s3:*"
+        ],
+        Resource = [
+          "*"
+        ]
+      }
+    ]
+  })
+}
+
+# IAM Policy for DynamoDB Access
+resource "aws_iam_policy" "codebuild_dynamodb_access" {
+  name = "${var.project_name}-codebuild-dynamodb-access"
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "dynamodb:*"
+        ],
+        Resource = [
+          "*"
+        ]
+      }
+    ]
+  })
+}
+
+# Attach S3 and DynamoDB access policies to the CodeBuild role
+resource "aws_iam_policy_attachment" "codebuild_s3_attachment" {
+  name       = "${var.project_name}-codebuild-s3-policy-attachment"
+  roles      = [aws_iam_role.codebuild_role.name]
+  policy_arn = aws_iam_policy.codebuild_s3_access.arn
+}
+
+resource "aws_iam_policy_attachment" "codebuild_dynamodb_attachment" {
+  name       = "${var.project_name}-codebuild-dynamodb-policy-attachment"
+  roles      = [aws_iam_role.codebuild_role.name]
+  policy_arn = aws_iam_policy.codebuild_dynamodb_access.arn
 }
