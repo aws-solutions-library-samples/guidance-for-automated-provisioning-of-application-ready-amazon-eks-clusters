@@ -5,32 +5,33 @@ phases:
     runtime-versions:
       python: 3.8
     commands:
-      - echo "Updating OS packages..."
-      - apt-get update && apt-get install -y unzip jq curl make
-      - echo "Installing AWS CLI v2..."
-      - curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-      - unzip awscliv2.zip
-      - ./aws/install
-      - echo "Verifying AWS CLI installation..."
+      - echo "Updating OS packages and installing necessary tools..."
+      - apt-get install -y unzip jq curl make bash
+      - echo "Verifying installations..."
+      - bash --version
+      - make --version
+      - echo "AWS CLI Version:"
       - aws --version
 
   pre_build:
     commands:
       - echo "Navigating to project directory..."
       - cd single-account-single-cluster-multi-env
-      - echo "Setting environment variables..."
-      - export AWS_DEFAULT_REGION='us-east-1' && export AWS_REGION='us-east-1'
       - echo "Deploying Terraform resources for state management..."
-      - make bootstrap
+      - set -ex
+      - codebuild-breakpoint
+      - /bin/bash -c "set -o pipefail && make bootstrap"
 
   build:
     commands:
       - echo "Navigating to Terraform vars directory..."
-      - cd single-account-single-cluster-multi-env/00.global/vars
+      - cd 00.global/vars
       - echo "Environment files found:"
       - ls -al  # List the environment configuration files
       - cd ../../  # Navigate back to the root of the Terraform directory
-      - make ENVIRONMENT=dev apply-all
+      - set -ex
+      - codebuild-breakpoint
+      - /bin/bash -c "set -o pipefail && make bootstrap"
 
   post_build:
     commands:
@@ -40,3 +41,8 @@ artifacts:
   files:
     - '**/*'
   discard-paths: yes
+
+env:
+  variables:
+    AWS_REGION: "eu-central-1"
+    ENVIRONMENT: "dev"  # You can adjust this as needed

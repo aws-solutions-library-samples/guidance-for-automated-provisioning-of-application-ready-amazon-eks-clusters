@@ -29,10 +29,15 @@ resource "aws_codebuild_project" "terraform_build" {
   }
 
   environment {
+    privileged_mode             = true
     compute_type                = "BUILD_GENERAL1_SMALL"
     image                       = "aws/codebuild/standard:5.0"
     type                        = "LINUX_CONTAINER"
     image_pull_credentials_type = "CODEBUILD"
+    environment_variable {
+      name  = "AWS_REGION"
+      value = "eu-central-1"
+    }
   }
 
   source {
