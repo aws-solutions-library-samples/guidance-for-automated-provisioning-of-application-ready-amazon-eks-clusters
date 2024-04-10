@@ -39,9 +39,14 @@ resource "aws_codebuild_project" "terraform_build" {
     type            = "GITHUB"
     location        = "https://github.com/aws-samples/terraform-workloads-ready-eks-accelerator.git"
     git_clone_depth = 1
+    buildspec       = file("../${path.module}/buildspec.yml")
   }
 
+
+
   source_version = "refs/heads/cicd" # Default branch to use from GitHub
+  # Reference to a local buildspec file
+
 }
 
 # IAM Role for CodeBuild

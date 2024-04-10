@@ -19,8 +19,7 @@ phases:
       - echo "Navigating to project directory..."
       - cd single-account-single-cluster-multi-env
       - echo "Setting environment variables..."
-      - "export AWS_DEFAULT_REGION='us-east-1'"
-      - "export AWS_REGION='us-east-1'"
+      - export AWS_DEFAULT_REGION='us-east-1' && export AWS_REGION='us-east-1'
       - echo "Deploying Terraform resources for state management..."
       - make bootstrap
 
@@ -30,9 +29,7 @@ phases:
       - cd single-account-single-cluster-multi-env/00.global/vars
       - echo "Environment files found:"
       - ls -al  # List the environment configuration files
-      - echo "Navigating back to project root..."
-      - cd ../../../  # Navigate back to the root of the Terraform directory
-      - echo "Deploying environment: Development"
+      - cd ../../  # Navigate back to the root of the Terraform directory
       - make ENVIRONMENT=dev apply-all
 
   post_build:
