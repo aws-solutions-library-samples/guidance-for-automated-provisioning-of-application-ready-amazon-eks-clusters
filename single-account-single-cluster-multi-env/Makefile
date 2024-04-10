@@ -1,5 +1,6 @@
 .ONESHELL:
-SHELL = bash -o pipefail
+SHELL = bash
+SHELLFLAGS = -o pipefail
 
 ENVIRONMENT ?= dev
 AWS_REGION ?= $(shell aws configure get region)
