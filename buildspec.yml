@@ -1,0 +1,44 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.8
+    commands:
+      - echo "Updating OS packages..."
+      - apt-get update && apt-get install -y unzip jq curl make
+      - echo "Installing AWS CLI v2..."
+      - curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+      - unzip awscliv2.zip
+      - ./aws/install
+      - echo "Verifying AWS CLI installation..."
+      - aws --version
+
+  pre_build:
+    commands:
+      - cd single-account-single-cluster-multi-env
+      - echo "Setting environment variables..."
+      - export AWS_DEFAULT_REGION='us-east-1'
+      - export AWS_REGION='us-east-1'
+      - echo "Deploying Terraform resources for state management..."
+      - make bootstrap
+
+  build:
+    commands:
+      - cd single-account-single-cluster-multi-env
+      - echo "Defining environments for deployment..."
+      - cd 00.global/vars
+      - echo "Environment files found:"
+      - ls -al  # List the environment configuration files
+      - cd ../../  # Navigate back to the root of the Terraform directory
+      - echo "Deploying environment: Development"
+      - make ENVIRONMENT=dev apply-all
+
+  post_build:
+    commands:
+      - echo "Build completed on `date`"
+
+artifacts:
+  files:
+    - '**/*'
+  discard-paths: yes
