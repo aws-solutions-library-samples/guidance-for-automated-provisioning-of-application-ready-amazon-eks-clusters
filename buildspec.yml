@@ -37,7 +37,7 @@ phases:
       - cd ../../  # Navigate back to the root of the Terraform directory
       - set -ex
       - codebuild-breakpoint
-      - make bootstrap"
+      - make apply-all
 
   post_build:
     commands:

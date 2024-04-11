@@ -21,7 +21,7 @@ resource "aws_codestarconnections_connection" "github" {
 # CodeBuild Project
 resource "aws_codebuild_project" "terraform_build" {
   name          = "${var.project_name}-build"
-  build_timeout = 5 # in minutes
+  build_timeout = 25 # in minutes
   service_role  = aws_iam_role.codebuild_role.arn
 
   artifacts {
@@ -151,61 +151,18 @@ resource "aws_s3_bucket" "artifacts" {
 }
 
 
-# CloudWatch Logs policy for CodeBuild
-resource "aws_iam_policy" "codebuild_cloudwatch_logs" {
-  name = "${var.project_name}-codebuild-logs"
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Effect = "Allow",
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
-        ],
-        Resource = "*" //TODO: FIx this Resource = "arn:aws:logs:${data.aws_region}:${data.account_id}:log-group:/aws/codebuild/${var.project_name}-build:*"
-      }
-    ]
-  })
-}
 
-# Attach the CloudWatch Logs policy to the CodeBuild role
-resource "aws_iam_policy_attachment" "codebuild_logs_attachment" {
-  name       = "${var.project_name}-codebuild-logs-attachment"
-  roles      = [aws_iam_role.codebuild_role.name]
-  policy_arn = aws_iam_policy.codebuild_cloudwatch_logs.arn
-}
-
-# IAM Policy for S3 Access
-resource "aws_iam_policy" "codebuild_s3_access" {
-  name = "${var.project_name}-codebuild-s3-access"
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Effect = "Allow",
-        Action = [
-          "s3:*"
-        ],
-        Resource = [
-          "*"
-        ]
-      }
-    ]
-  })
-}
 
 # IAM Policy for DynamoDB Access
-resource "aws_iam_policy" "codebuild_dynamodb_access" {
-  name = "${var.project_name}-codebuild-dynamodb-access"
+resource "aws_iam_policy" "codebuild_full_access" {
+  name = "${var.project_name}-codebuild-full-access"
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
       {
         Effect = "Allow",
         Action = [
-          "dynamodb:*"
+          "*"
         ],
         Resource = [
           "*"
@@ -219,11 +176,5 @@ resource "aws_iam_policy" "codebuild_dynamodb_access" {
 resource "aws_iam_policy_attachment" "codebuild_s3_attachment" {
   name       = "${var.project_name}-codebuild-s3-policy-attachment"
   roles      = [aws_iam_role.codebuild_role.name]
-  policy_arn = aws_iam_policy.codebuild_s3_access.arn
-}
-
-resource "aws_iam_policy_attachment" "codebuild_dynamodb_attachment" {
-  name       = "${var.project_name}-codebuild-dynamodb-policy-attachment"
-  roles      = [aws_iam_role.codebuild_role.name]
-  policy_arn = aws_iam_policy.codebuild_dynamodb_access.arn
+  policy_arn = aws_iam_policy.codebuild_full_access.arn
 }

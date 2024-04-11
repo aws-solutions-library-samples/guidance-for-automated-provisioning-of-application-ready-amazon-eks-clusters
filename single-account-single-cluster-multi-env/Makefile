@@ -41,15 +41,23 @@ check-env:
 	@mkdir -p tf-logs
 
 bootstrap: check-env
+	@echo "Initializing Terraform for bootstrapping..."
 	@terraform -chdir=./00.tf-base init \
 		-input=false \
 		-upgrade \
+		-backend-config="region=$(AWS_REGION)" \
+		-backend-config="bucket=$(TFSTATE_S3_BUCKET)" \
+		-backend-config="dynamodb_table=$(TFSTATE_DDB_TABLE)" \
 		2>&1 | tee -a tf-logs/bootstrap-init.log
-	@terraform -chdir=./00.tf-base apply \
-		-no-color \
-		-auto-approve \
-		2>&1 | tee -a tf-logs/bootstrap-apply.log
-
+	@if terraform -chdir=./00.tf-base state list 2>/dev/null | grep -q '.' ; then \
+		echo "State exists in S3, importing..."; \
+	else \
+		echo "No state found in S3, applying Terraform configuration..."; \
+		terraform -chdir=./00.tf-base apply \
+			-no-color \
+			-auto-approve \
+			2>&1 | tee -a tf-logs/bootstrap-apply.log; \
+	fi
 init-all:
 	@for m in $(MODULES); do \
   		$(MAKE) init MODULE=$$m || exit 1; \
