@@ -25,22 +25,22 @@ scrape_configs:
         regex: (.+)
         target_label: __metrics_path__
         replacement: /api/v1/nodes/$1/proxy/metrics/cadvisor
-  # apiserver metrics
-  - job_name: kubernetes-apiservers
-    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
-    kubernetes_sd_configs:
-    - role: endpoints
-    relabel_configs:
-    - action: keep
-      regex: default;kubernetes;https
-      source_labels:
-      - __meta_kubernetes_namespace
-      - __meta_kubernetes_service_name
-      - __meta_kubernetes_endpoint_port_name
-    scheme: https
-    tls_config:
-      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-      insecure_skip_verify: true
+  # # apiserver metrics
+  # - job_name: kubernetes-apiservers
+  #   bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+  #   kubernetes_sd_configs:
+  #   - role: endpoints
+  #   relabel_configs:
+  #   - action: keep
+  #     regex: default;kubernetes;https
+  #     source_labels:
+  #     - __meta_kubernetes_namespace
+  #     - __meta_kubernetes_service_name
+  #     - __meta_kubernetes_endpoint_port_name
+  #   scheme: https
+  #   tls_config:
+  #     ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+  #     insecure_skip_verify: true
 
   # kube proxy metrics
   - job_name: kube-proxy
@@ -99,10 +99,20 @@ scrape_configs:
     metric_relabel_configs:
     - action: keep
       source_labels: [__name__]
-    - source_labels: [__name__, le]
-      separator: ;
-      regex: apiserver_request_duration_seconds_bucket;(0.15|0.2|0.3|0.35|0.4|0.45|0.6|0.7|0.8|0.9|1.25|1.5|1.75|2|3|3.5|4|4.5|6|7|8|9|15|25|40|50)
-      replacement: $1
+    - source_labels: [__name__]
+      regex: etcd_request_duration_seconds_bucket # 20K
+      action: drop 
+    - source_labels: [__name__]
+      regex: apiserver_request_duration_seconds_bucket # 15K
+      action: drop 
+    - source_labels: [__name__]
+      regex: apiserver_request_sli_duration_seconds_bucket # 15K
+      action: drop 
+    - source_labels: [__name__]
+      regex: apiserver_response_sizes_bucket # 5K
+      action: drop 
+    - source_labels: [__name__]
+      regex: apiserver_storage_list_duration_seconds_bucket # 3K
       action: drop 
 
 
