@@ -27,8 +27,34 @@ module "eks_blueprints_addons" {
   #  ADOT will be deployed as part of the observability accelerator as it's needed specifically for AMP deployment
 
   enable_external_secrets = try(var.observability_configuration.aws_oss_tooling, false)
+  external_secrets = {
+    values = [
+      yamlencode({
+        tolerations = [local.critical_addons_tolerations.tolerations[0]]
+        webhook = {
+          tolerations = [local.critical_addons_tolerations.tolerations[0]]
+        }
+        certController = {
+          tolerations = [local.critical_addons_tolerations.tolerations[0]]
+        }
+      })
+    ]
+  }
 
   enable_cert_manager = try(var.observability_configuration.aws_oss_tooling, false)
+  cert_manager = {
+    values = [
+      yamlencode({
+        tolerations = [local.critical_addons_tolerations.tolerations[0]]
+        webhook = {
+          tolerations = [local.critical_addons_tolerations.tolerations[0]]
+        }
+        cainjector = {
+          tolerations = [local.critical_addons_tolerations.tolerations[0]]
+        }
+      })
+    ]
+  }
 
   enable_aws_for_fluentbit = try(var.observability_configuration.aws_oss_tooling, false)
   aws_for_fluentbit = {

@@ -104,7 +104,8 @@ module "eks" {
 
   # managed node group for base EKS addons such as Karpenter 
   eks_managed_node_group_defaults = {
-    instance_types = ["m6i.large", "m5.large"]
+    instance_types = ["t4g.medium", "t4g.large"]
+    ami_type       = "BOTTLEROCKET_ARM_64"
     iam_role_additional_policies = {
       SSM = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
     }
@@ -112,7 +113,7 @@ module "eks" {
   eks_managed_node_groups = {
     "${local.cluster_name}-criticaladdons" = {
       subnet_ids   = data.terraform_remote_state.vpc.outputs.private_subnet_ids
-      max_size     = 5
+      max_size     = 8
       desired_size = 2
       min_size     = 2
 
