@@ -25,22 +25,6 @@ scrape_configs:
         regex: (.+)
         target_label: __metrics_path__
         replacement: /api/v1/nodes/$1/proxy/metrics/cadvisor
-  # # apiserver metrics
-  # - job_name: kubernetes-apiservers
-  #   bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
-  #   kubernetes_sd_configs:
-  #   - role: endpoints
-  #   relabel_configs:
-  #   - action: keep
-  #     regex: default;kubernetes;https
-  #     source_labels:
-  #     - __meta_kubernetes_namespace
-  #     - __meta_kubernetes_service_name
-  #     - __meta_kubernetes_endpoint_port_name
-  #   scheme: https
-  #   tls_config:
-  #     ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-  #     insecure_skip_verify: true
 
   # kube proxy metrics
   - job_name: kube-proxy
@@ -78,8 +62,8 @@ scrape_configs:
       target_label: __metrics_path__
       replacement: /api/v1/nodes/$1/proxy/metrics
 
-  # APISERVER
-  - job_name: 'apiserver'
+  # kubernetes apiservers metrics
+  - job_name: 'kubernetes-apiservers'
     scheme: https
     tls_config:
       ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
@@ -113,17 +97,11 @@ scrape_configs:
       action: drop 
     - source_labels: [__name__]
       regex: apiserver_storage_list_duration_seconds_bucket # 3K
-      action: drop 
-
-
-  - job_name: 'kube-state-metrics-static'
-    static_configs:
-      - targets: ['kube-state-metrics.kube-system.svc:8080']
+      action: drop
 
   - job_name: 'kube-state-metrics'
     kubernetes_sd_configs:
     - role: pod
-
     relabel_configs:
     # Select kube-state-metrics only from port 8080
     - source_labels: [__meta_kubernetes_pod_container_name,__meta_kubernetes_pod_container_port_number]

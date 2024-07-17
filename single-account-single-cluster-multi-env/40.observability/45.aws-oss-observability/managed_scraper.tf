@@ -64,28 +64,3 @@ resource "aws_prometheus_scraper" "amp_scraper" {
     }
   )
 }
-
-locals {
-  amp_scrpaer_arn_trimmed = replace(aws_prometheus_scraper.amp_scraper[0].role_arn, "aws-service-role/scraper.aps.amazonaws.com/", "")
-}
-
-resource "null_resource" "clean_up_argocd_resources" {
-  depends_on = [aws_prometheus_scraper.amp_scraper]
-  triggers = {
-    always_run   = timestamp()
-    region       = local.region
-    scraper_arn  = local.amp_scrpaer_arn_trimmed
-    cluster_name = local.eks_cluster_name
-  }
-  provisioner "local-exec" {
-
-    command = "eksctl create iamidentitymapping --cluster ${self.triggers.cluster_name} --region ${self.triggers.region} --arn ${self.triggers.scraper_arn} --username aps-collector-user"
-
-    interpreter = ["bash", "-c"]
-    # when        = destroy
-  }
-}
-
-output "eksctl_create_amp_scraper_identitymapping_command" {
-  value = "eksctl create iamidentitymapping --cluster ${local.eks_cluster_name} --region ${local.region} --arn ${local.amp_scrpaer_arn_trimmed} --username aps-collector-user"
-}
