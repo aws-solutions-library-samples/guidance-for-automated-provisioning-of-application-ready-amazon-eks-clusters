@@ -34,6 +34,7 @@ check-env:
 	@if [ ! -f $(VAR_FILE) ]; then \
   		echo "VAR_FILE: $(VAR_FILE) does not exist."; \
   	fi
+
 	@mkdir -p tf-logs
 
 bootstrap: check-env
