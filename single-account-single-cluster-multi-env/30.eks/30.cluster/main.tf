@@ -103,6 +103,7 @@ module "eks" {
   create_node_security_group    = false
 
   # managed node group for base EKS addons such as Karpenter 
+
   eks_managed_node_group_defaults = {
     instance_types = ["t4g.medium", "t4g.large"]
     ami_type       = "BOTTLEROCKET_ARM_64"
@@ -112,10 +113,12 @@ module "eks" {
   }
   eks_managed_node_groups = {
     "${local.cluster_name}-criticaladdons" = {
-      subnet_ids   = data.terraform_remote_state.vpc.outputs.private_subnet_ids
-      max_size     = 8
-      desired_size = 2
-      min_size     = 2
+
+      iam_role_use_name_prefix = false
+      subnet_ids               = data.terraform_remote_state.vpc.outputs.private_subnet_ids
+      max_size                 = 8
+      desired_size             = 2
+      min_size                 = 2
 
       taints = {
         critical_addons = {
