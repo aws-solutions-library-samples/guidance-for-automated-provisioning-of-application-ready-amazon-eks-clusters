@@ -31,13 +31,10 @@ check-env:
 		echo "AWS_REGION was not set."; \
 		exit 1; \
 	 fi
-	@if [ -z $(AWS_PROFILE) ]; then \
-		echo "AWS_PROFILE was not set."; \
-		exit 1; \
-	 fi
 	@if [ ! -f $(VAR_FILE) ]; then \
   		echo "VAR_FILE: $(VAR_FILE) does not exist."; \
   	fi
+
 	@mkdir -p tf-logs
 
 bootstrap: check-env
