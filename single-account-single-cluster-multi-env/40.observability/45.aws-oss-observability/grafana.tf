@@ -66,7 +66,7 @@ resource "aws_identitystore_user" "user" {
   }
 
   emails {
-    value = var.grafana_admin_email
+    value = "${terraform.workspace}-${var.grafana_admin_email}"
   }
 }
 

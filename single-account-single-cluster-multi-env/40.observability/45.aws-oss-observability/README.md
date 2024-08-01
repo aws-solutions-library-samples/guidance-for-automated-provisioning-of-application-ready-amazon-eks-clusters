@@ -128,7 +128,6 @@ awscurl --service="aps" --region=$REGION "https://aps-workspaces.$REGION.amazona
 | <a name="provider_aws"></a> [aws](#provider\_aws) | >= 5.40.0 |
 | <a name="provider_helm"></a> [helm](#provider\_helm) | >= 2.4.1 |
 | <a name="provider_kubectl"></a> [kubectl](#provider\_kubectl) | >= 2.0.3 |
-| <a name="provider_null"></a> [null](#provider\_null) | >= 3.0 |
 | <a name="provider_terraform"></a> [terraform](#provider\_terraform) | n/a |
 | <a name="provider_time"></a> [time](#provider\_time) | 0.10.0 |
 
@@ -161,7 +160,6 @@ awscurl --service="aps" --region=$REGION "https://aps-workspaces.$REGION.amazona
 | [kubectl_manifest.cluster_secretstore](https://registry.terraform.io/providers/alekc/kubectl/latest/docs/resources/manifest) | resource |
 | [kubectl_manifest.default_dashboards](https://registry.terraform.io/providers/alekc/kubectl/latest/docs/resources/manifest) | resource |
 | [kubectl_manifest.secret](https://registry.terraform.io/providers/alekc/kubectl/latest/docs/resources/manifest) | resource |
-| [null_resource.clean_up_argocd_resources](https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource) | resource |
 | [time_rotating.this](https://registry.terraform.io/providers/hashicorp/time/0.10.0/docs/resources/rotating) | resource |
 | [time_static.this](https://registry.terraform.io/providers/hashicorp/time/0.10.0/docs/resources/static) | resource |
 | [aws_caller_identity.current](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/caller_identity) | data source |
@@ -189,7 +187,5 @@ awscurl --service="aps" --region=$REGION "https://aps-workspaces.$REGION.amazona
 
 ## Outputs
 
-| Name | Description |
-|------|-------------|
-| <a name="output_eksctl_create_amp_scraper_identitymapping_command"></a> [eksctl\_create\_amp\_scraper\_identitymapping\_command](#output\_eksctl\_create\_amp\_scraper\_identitymapping\_command) | n/a |
+No outputs.
 <!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
