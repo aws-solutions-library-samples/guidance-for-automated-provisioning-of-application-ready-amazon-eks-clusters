@@ -105,8 +105,8 @@ module "eks" {
   # managed node group for base EKS addons such as Karpenter 
 
   eks_managed_node_group_defaults = {
-    instance_types = ["t4g.medium", "t4g.large"]
-    ami_type       = "BOTTLEROCKET_ARM_64"
+    instance_types = ["m6i.large", "m5.large"]
+    ami_type       = "AL2_x86_64"
     iam_role_additional_policies = {
       SSM = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
     }
@@ -174,6 +174,28 @@ resource "aws_eks_access_entry" "karpenter_node" {
 
 
 ################################################################################
+# EBS CSI Driver
+################################################################################
+module "ebs_csi_driver_irsa" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "~> 5.43"
+
+  role_name = "${local.cluster_name}-ebs-csi"
+
+  role_policy_arns = {
+    policy = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+  }
+
+  oidc_providers = {
+    cluster = {
+      provider_arn               = module.eks.oidc_provider_arn
+      namespace_service_accounts = ["kube-system:ebs-csi-controller-sa"]
+    }
+  }
+}
+
+
+################################################################################
 # EKS Blueprints Addons - common/base addons for every cluster
 ################################################################################
 
@@ -219,6 +241,9 @@ module "eks_blueprints_addons" {
     kube-proxy = {
       most_recent = true
     }
+    aws-ebs-csi-driver = {
+      service_account_role_arn = module.ebs_csi_driver_irsa.iam_role_arn
+    }
   }
 
   # by default, Karpenter helm chart is set to not schedule Karpenter pods, on nodes it creates,
@@ -253,4 +278,43 @@ resource "kubectl_manifest" "karpenter_manifests" {
   for_each   = toset(data.kubectl_path_documents.karpenter_manifests.documents)
   yaml_body  = each.value
   depends_on = [module.eks_blueprints_addons]
+}
+
+################################################################################
+# Storage Classes
+################################################################################
+resource "kubernetes_annotations" "gp2" {
+  api_version = "storage.k8s.io/v1"
+  kind        = "StorageClass"
+  force       = "true"
+  metadata {
+    name = "gp2"
+  }
+  annotations = {
+    "storageclass.kubernetes.io/is-default-class" = "false"
+  }
+  depends_on = [
+    module.eks_blueprints_addons
+  ]
+}
+
+resource "kubernetes_storage_class_v1" "gp3" {
+  metadata {
+    name = "gp3"
+    annotations = {
+      "storageclass.kubernetes.io/is-default-class" = "true" # make gp3 the default storage class
+    }
+  }
+  storage_provisioner    = "ebs.csi.aws.com"
+  allow_volume_expansion = true
+  reclaim_policy         = "Delete"
+  volume_binding_mode    = "WaitForFirstConsumer"
+  parameters = {
+    encrypted = true
+    fsType    = "ext4"
+    type      = "gp3"
+  }
+  depends_on = [
+    module.eks_blueprints_addons
+  ]
 }

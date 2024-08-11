@@ -17,7 +17,7 @@ else
 	TF_AUTO_APPROVE := ""
 endif
 
-.PHONY: print-modules clean check-env bootstrap init-all plan-all apply-all destroy-all init plan apply destroy
+.PHONY: print-modules clean check-env bootstrap init-all plan-all apply-all destroy-all init refresh plan apply destroy
 
 print-modules:
 	@for m in $(MODULES); do echo $$m; done
@@ -92,6 +92,14 @@ tf-select-ws:
 	fi
 	@echo ENVIRONMENT=$(ENVIRONMENT) MODULE=$(MODULE) Switching to Terraform workspace: $(ENVIRONMENT)
 	@terraform -chdir=$(MODULE) workspace select -or-create=true $(ENVIRONMENT)
+
+refresh: init tf-select-ws
+	@echo ENVIRONMENT=$(ENVIRONMENT) MODULE=$(MODULE) terraform::refresh
+	@terraform -chdir=$(MODULE) refresh \
+		-input=false \
+		-lock=true \
+		-var-file=$(VAR_FILE) \
+		2>&1 | tee -a tf-logs/$(notdir $(MODULE))-refresh.log
 
 plan: init tf-select-ws
 	@echo ENVIRONMENT=$(ENVIRONMENT) MODULE=$(MODULE) terraform::plan
