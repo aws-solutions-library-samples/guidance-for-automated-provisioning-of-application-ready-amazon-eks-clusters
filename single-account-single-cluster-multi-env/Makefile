@@ -120,8 +120,8 @@ apply: init tf-select-ws
 
 destroy: init tf-select-ws
 	@echo ENVIRONMENT=$(ENVIRONMENT) MODULE=$(MODULE) terraform::destroy
-	@terraform -chdir=$(MODULE) destroy \
-	$(TF_AUTO_APPROVE) \
+	@terraform -chdir=$(MODULE) apply -destroy \
+	-auto-approve \
 	-input=false \
 	-lock=true \
 	-var-file=$(VAR_FILE) \
