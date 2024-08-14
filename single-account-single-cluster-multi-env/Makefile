@@ -55,11 +55,11 @@ bootstrap: check-env
 	@if ! aws dynamodb describe-table --region $(AWS_REGION) --table-name $(TFSTATE_DDB_TABLE) > /dev/null 2>&1 ; then \
 		echo "DynamoDB table $(TFSTATE_DDB_TABLE) does not exists, creating..."; \
 		aws dynamodb create-table \
-        	--region $(AWS_REGION) \
-        	--table-name $(TFSTATE_DDB_TABLE) \
-        	--attribute-definitions AttributeName=LockID,AttributeType=S \
-        	--key-schema AttributeName=LockID,KeyType=HASH \
-        	--billing-mode PAY_PER_REQUEST > /dev/null 2>&1 ; \
+          	--region $(AWS_REGION) \
+          	--table-name $(TFSTATE_DDB_TABLE) \
+          	--attribute-definitions AttributeName=LockID,AttributeType=S \
+          	--key-schema AttributeName=LockID,KeyType=HASH \
+          	--billing-mode PAY_PER_REQUEST > /dev/null 2>&1 ; \
 		echo "Created DynamoDB table $(TFSTATE_DDB_TABLE)."; \
 	 else \
 		echo "DynamoDB table $(TFSTATE_DDB_TABLE) exists."; \
