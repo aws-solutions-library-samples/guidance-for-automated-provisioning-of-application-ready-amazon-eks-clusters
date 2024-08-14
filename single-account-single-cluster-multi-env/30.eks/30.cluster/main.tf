@@ -105,8 +105,8 @@ module "eks" {
   # managed node group for base EKS addons such as Karpenter 
 
   eks_managed_node_group_defaults = {
-    instance_types = ["m6i.large", "m5.large"]
-    ami_type       = "AL2_x86_64"
+    instance_types = ["m7g.large", "m6g.large"]
+    ami_type       = "AL2_ARM_64"
     iam_role_additional_policies = {
       SSM = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
     }
