@@ -38,14 +38,32 @@ check-env:
 	@mkdir -p tf-logs
 
 bootstrap: check-env
-	@terraform -chdir=./00.tf-base init \
-		-input=false \
-		-upgrade \
-		2>&1 | tee -a tf-logs/bootstrap-init.log
-	@terraform -chdir=./00.tf-base apply \
-		-no-color \
-		-auto-approve \
-		2>&1 | tee -a tf-logs/bootstrap-apply.log
+	@echo "Bootstrapping Terraform: S3 Bucket: $(TFSTATE_S3_BUCKET), DynamoDB Table: $(TFSTATE_DDB_TABLE)"
+	@echo "Checking if S3 Bucket $(TFSTATE_S3_BUCKET) exists"
+	@if ! aws s3api head-bucket --region $(AWS_REGION) --bucket $(TFSTATE_S3_BUCKET) > /dev/null 2>&1; then \
+		echo "S3 Bucket $(TFSTATE_S3_BUCKET) does not exists, creating..."; \
+		aws s3 mb --region $(AWS_REGION) s3://$(TFSTATE_S3_BUCKET) > /dev/null 2>&1; \
+		aws s3api put-bucket-ownership-controls --region $(AWS_REGION) --bucket $(TFSTATE_S3_BUCKET) --ownership-controls Rules="[{ObjectOwnership=BucketOwnerPreferred}]" > /dev/null 2>&1; \
+		aws s3api put-bucket-acl --region $(AWS_REGION) --bucket $(TFSTATE_S3_BUCKET) --acl private > /dev/null 2>&1; \
+		aws s3api put-public-access-block --bucket $(TFSTATE_S3_BUCKET) --public-access-block-configuration "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true" > /dev/null 2>&1; \
+		aws s3api put-bucket-versioning --region $(AWS_REGION) --bucket $(TFSTATE_S3_BUCKET) --versioning-configuration Status=Enabled > /dev/null 2>&1; \
+		echo "Created S3 Bucket $(TFSTATE_S3_BUCKET)."; \
+	 else \
+		echo "S3 Bucket $(TFSTATE_S3_BUCKET) exists."; \
+	 fi
+	@echo "Checking if DynamoDB table $(TFSTATE_DDB_TABLE) exists"
+	@if ! aws dynamodb describe-table --region $(AWS_REGION) --table-name $(TFSTATE_DDB_TABLE) > /dev/null 2>&1 ; then \
+		echo "DynamoDB table $(TFSTATE_DDB_TABLE) does not exists, creating..."; \
+		aws dynamodb create-table \
+        	--region $(AWS_REGION) \
+        	--table-name $(TFSTATE_DDB_TABLE) \
+        	--attribute-definitions AttributeName=LockID,AttributeType=S \
+        	--key-schema AttributeName=LockID,KeyType=HASH \
+        	--billing-mode PAY_PER_REQUEST > /dev/null 2>&1 ; \
+		echo "Created DynamoDB table $(TFSTATE_DDB_TABLE)."; \
+	 else \
+		echo "DynamoDB table $(TFSTATE_DDB_TABLE) exists."; \
+	 fi
 
 init-all:
 	@for m in $(MODULES); do \
