@@ -52,7 +52,7 @@ resource "aws_prometheus_scraper" "amp_scraper" {
 
   destination {
     amp {
-      workspace_arn = aws_prometheus_workspace.this.arn
+      workspace_arn = aws_prometheus_workspace.this[0].arn
     }
   }
 
