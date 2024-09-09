@@ -135,7 +135,7 @@ resource "kubectl_manifest" "amp_data_source" {
   count      = var.observability_configuration.aws_oss_tooling && var.observability_configuration.aws_oss_tooling_config.enable_grafana_operator ? 1 : 0
   yaml_body = templatefile("${path.module}/grafana-operator-manifests/infrastructure/amp-datasource.yaml",
     {
-      AMP_ENDPOINT_URL = aws_prometheus_workspace.this.prometheus_endpoint,
+      AMP_ENDPOINT_URL = aws_prometheus_workspace.this[0].prometheus_endpoint,
       AMG_AWS_REGION   = local.region
       ENVIRONMENT      = terraform.workspace
     }

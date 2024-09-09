@@ -16,7 +16,7 @@ cluster_config = {
 
 # Observability variables 
 observability_configuration = {
-  aws_oss_tooling    = true
+  aws_oss_tooling    = false
   aws_native_tooling = false
   aws_oss_tooling_config = {
     enable_managed_collector       = true

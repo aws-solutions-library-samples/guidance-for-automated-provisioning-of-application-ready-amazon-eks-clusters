@@ -74,7 +74,7 @@ terraform apply -var-file="../../00.global/vars/dev.tfvars"
 
 | Name | Source | Version |
 |------|--------|---------|
-| <a name="module_eks_blueprints_addons"></a> [eks\_blueprints\_addons](#module\_eks\_blueprints\_addons) | aws-ia/eks-blueprints-addons/aws | ~> 1.16.1 |
+| <a name="module_eks_blueprints_addons"></a> [eks\_blueprints\_addons](#module\_eks\_blueprints\_addons) | aws-ia/eks-blueprints-addons/aws | ~> 1.16.2 |
 
 ## Resources
 
