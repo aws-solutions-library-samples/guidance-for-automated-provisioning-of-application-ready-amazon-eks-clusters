@@ -68,9 +68,6 @@ module "eks_blueprints_addons" {
     create          = true
   }
 
-  # CW Container Insights 
-  enable_aws_cloudwatch_metrics = try(var.observability_configuration.aws_native_tooling, false)
-
   # GitOps 
   enable_argocd = true
   argocd = {
