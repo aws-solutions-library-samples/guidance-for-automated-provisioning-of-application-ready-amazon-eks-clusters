@@ -7,6 +7,7 @@
 ################################################################################################################################################
 
 resource "aws_prometheus_rule_group_namespace" "recording_rules" {
+  count = var.observability_configuration.aws_oss_tooling ? 1 : 0
   #   count        = var.enable_recording_rules ? 1 : 0
   name         = "accelerator-infra-rules"
   workspace_id = aws_prometheus_workspace.this.id

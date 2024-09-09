@@ -244,6 +244,10 @@ module "eks_blueprints_addons" {
     aws-ebs-csi-driver = {
       service_account_role_arn = module.ebs_csi_driver_irsa.iam_role_arn
     }
+    eks-pod-identity-agent = {
+      most_recent = true
+    }
+
   }
 
   # by default, Karpenter helm chart is set to not schedule Karpenter pods, on nodes it creates,

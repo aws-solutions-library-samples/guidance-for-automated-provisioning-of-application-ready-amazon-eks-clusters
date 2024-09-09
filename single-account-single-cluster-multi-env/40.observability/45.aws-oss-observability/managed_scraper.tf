@@ -24,7 +24,7 @@ YAML
 }
 
 resource "kubectl_manifest" "amp_scraper_clusterrolebinding" {
-  count     = var.observability_configuration.aws_oss_tooling_config.enable_managed_collector ? 1 : 0
+  count     = var.observability_configuration.aws_oss_tooling && var.observability_configuration.aws_oss_tooling_config.enable_managed_collector ? 1 : 0
   yaml_body = <<YAML
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -42,7 +42,7 @@ YAML
 }
 
 resource "aws_prometheus_scraper" "amp_scraper" {
-  count = var.observability_configuration.aws_oss_tooling_config.enable_managed_collector ? 1 : 0
+  count = var.observability_configuration.aws_oss_tooling && var.observability_configuration.aws_oss_tooling_config.enable_managed_collector ? 1 : 0
   source {
     eks {
       cluster_arn = data.aws_eks_cluster.this.arn
