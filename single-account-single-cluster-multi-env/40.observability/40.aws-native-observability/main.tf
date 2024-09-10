@@ -42,7 +42,7 @@ module "aws_cloudwatch_observability" {
   eks_addons = {
     amazon-cloudwatch-observability = {
       most_recent              = true
-      service_account_role_arn = module.aws_cloudwatch_observability_irsa.iam_role_arn
+      service_account_role_arn = module.aws_cloudwatch_observability_irsa[0].iam_role_arn
     }
   }
 }
