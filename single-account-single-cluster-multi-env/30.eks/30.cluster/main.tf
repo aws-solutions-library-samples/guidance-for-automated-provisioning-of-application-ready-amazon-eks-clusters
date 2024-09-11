@@ -21,7 +21,7 @@ data "aws_ecrpublic_authorization_token" "token" {
 #tfsec:ignore:aws-eks-enable-control-plane-logging
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "20.8.3"
+  version = "20.24.0"
 
   cluster_name                   = local.cluster_name
   cluster_version                = local.cluster_version
@@ -38,7 +38,7 @@ module "eks" {
     [data.aws_iam_session_context.current.issuer_arn]
   ))
 
-  enable_cluster_creator_admin_permissions = "true"
+  enable_cluster_creator_admin_permissions = "false"
   authentication_mode                      = "API_AND_CONFIG_MAP"
 
   access_entries = {
