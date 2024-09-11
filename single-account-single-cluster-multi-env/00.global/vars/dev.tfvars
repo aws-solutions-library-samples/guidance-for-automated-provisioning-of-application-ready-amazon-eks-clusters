@@ -10,7 +10,7 @@ shared_config = {
 }
 
 cluster_config = {
-  kubernetes_version  = "1.30"
+  kubernetes_version  = "1.29"
   private_eks_cluster = false
 }
 

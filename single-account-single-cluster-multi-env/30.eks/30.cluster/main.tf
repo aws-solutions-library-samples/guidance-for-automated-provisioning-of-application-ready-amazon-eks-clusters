@@ -38,7 +38,7 @@ module "eks" {
     [data.aws_iam_session_context.current.issuer_arn]
   ))
 
-  enable_cluster_creator_admin_permissions = "false"
+  enable_cluster_creator_admin_permissions = "true"
   authentication_mode                      = "API_AND_CONFIG_MAP"
 
   access_entries = {
@@ -147,6 +147,14 @@ resource "null_resource" "update-kubeconfig" {
 
     interpreter = ["bash", "-c"]
     # when        = destroy
+  }
+  lifecycle {
+    ignore_changes = [
+      # Ignore changes so it won't be applied every run
+      # This is simply to simplify the access for whoever test this solution
+      id,
+      triggers
+    ]
   }
 }
 
