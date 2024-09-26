@@ -23,25 +23,12 @@ module "eks_blueprints_addons" {
     values = [yamlencode(local.critical_addons_tolerations)]
   }
 
-  # Common addons needed for Observability Accerelrator w/ AMP (cert_manager, external secrets)
-  #  ADOT will be deployed as part of the observability accelerator as it's needed specifically for AMP deployment
+  # cert-manager as a dependency for ADOT addon
 
-  enable_external_secrets = try(var.observability_configuration.aws_oss_tooling, false)
-  external_secrets = {
-    values = [
-      yamlencode({
-        tolerations = [local.critical_addons_tolerations.tolerations[0]]
-        webhook = {
-          tolerations = [local.critical_addons_tolerations.tolerations[0]]
-        }
-        certController = {
-          tolerations = [local.critical_addons_tolerations.tolerations[0]]
-        }
-      })
-    ]
-  }
-
-  enable_cert_manager = try(var.observability_configuration.aws_oss_tooling, false)
+  enable_cert_manager = try(
+    var.observability_configuration.aws_oss_tooling
+    && var.observability_configuration.aws_oss_tooling_config.enable_adot_collector,
+  false)
   cert_manager = {
     values = [
       yamlencode({
@@ -56,7 +43,11 @@ module "eks_blueprints_addons" {
     ]
   }
 
-  enable_aws_for_fluentbit = try(var.observability_configuration.aws_oss_tooling, false)
+  # FluentBit 
+  enable_aws_for_fluentbit = try(
+    var.observability_configuration.aws_oss_tooling
+    && !var.observability_configuration.aws_oss_tooling.enable_adot_collector
+  , false)
   aws_for_fluentbit = {
     values = [
       yamlencode({ "tolerations" : [{ "operator" : "Exists" }] })
