@@ -19,10 +19,9 @@ observability_configuration = {
   aws_oss_tooling    = false
   aws_native_tooling = false
   aws_oss_tooling_config = {
-    enable_managed_collector       = true
-    enable_self_managed_collectors = false
-    prometheus_name                = "prom"
-    enable_grafana_operator        = true
+    enable_managed_collector = true
+    prometheus_name          = "prom"
+    enable_grafana_operator  = true
 
   }
 }
