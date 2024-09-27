@@ -23,8 +23,23 @@ module "eks_blueprints_addons" {
     values = [yamlencode(local.critical_addons_tolerations)]
   }
 
-  # cert-manager as a dependency for ADOT addon
+  # external-secrets is being used AMG for grafana auth
+  enable_external_secrets = try(var.observability_configuration.aws_oss_tooling, false)
+  external_secrets = {
+    values = [
+      yamlencode({
+        tolerations = [local.critical_addons_tolerations.tolerations[0]]
+        webhook = {
+          tolerations = [local.critical_addons_tolerations.tolerations[0]]
+        }
+        certController = {
+          tolerations = [local.critical_addons_tolerations.tolerations[0]]
+        }
+      })
+    ]
+  }
 
+  # cert-manager as a dependency for ADOT addon
   enable_cert_manager = try(
     var.observability_configuration.aws_oss_tooling
     && var.observability_configuration.aws_oss_tooling_config.enable_adot_collector,

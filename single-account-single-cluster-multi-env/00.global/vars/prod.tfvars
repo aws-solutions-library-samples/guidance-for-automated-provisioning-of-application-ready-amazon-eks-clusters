@@ -20,8 +20,8 @@ observability_configuration = {
   aws_native_tooling = false
   aws_oss_tooling_config = {
     enable_managed_collector = true
+    enable_adot_collector    = false
     prometheus_name          = "prom"
     enable_grafana_operator  = true
 
   }
-}
