@@ -5,6 +5,7 @@
 1. [Overview](#overview)
   - [Features and Benefits](#features-and-benefits) 
   - [Architecture](#architecture)
+  - [AWS services in this Guidance](#aws-services-in-this-guidance)
   - [Cost](#cost)
 2. [Prerequisites](#prerequisites)
   - [Operating System](#operating-system)
@@ -71,69 +72,70 @@ At its core, the solution deploys an Amazon EKS cluster within a custom Amazon V
 
 Key elements of the architecture include:
 
-1. [**Amazon VPC**](https://aws.amazon.com/vpc/){:target="_blank"}: A custom VPC with public and private subnets, providing network isolation and security.
-2. [**Amazon EKS Cluster**](https://aws.amazon.com/eks/){:target="_blank"}: The central component, managing the Kubernetes control plane and compute nodes
-3. [**EKS Managed Node Groups**](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html){:target="_blank"}: Auto-scaling groups of EC2 instances that serve as EKS compute nodes.
-4. [**Amazon Identity & Access Management**](https://aws.amazon.com/iam/){:target="_blank"}: Integrated with EKS for fine-grained access control.
-5. [**Amazon Elastic Container Registry (ECR)**](http://aws.amazon.com/ecr/){:target="_blank"}: For storing and managing container images.
-6. [**AWS Load Balancer Controller**](https://aws.amazon.com/blogs/networking-and-content-delivery/deploying-aws-load-balancer-controller-on-amazon-eks/){:target="_blank"}: Automatically provisions Application Load Balancers or Network Load Balancers when a Kubernetes service of type LoadBalancer is created.
-7. **Observability Tools**: [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/){:target="_blank"}, [Amazon Managed Grafana](https://aws.amazon.com/grafana/){:target="_blank"}, and [Amazon Managed Service for Prometheus](https://aws.amazon.com/prometheus/){:target="_blank"} for comprehensive monitoring and logging.
-8. [**Terraform Resources**](https://www.hashicorp.com/products/terraform){:target="_blank"}: Representing  infrastructure-as-code components that define and provision the guidance architecture.
+1. [**Amazon VPC**](https://aws.amazon.com/vpc/): A custom VPC with public and private subnets, providing network isolation and security.
+2. [**Amazon EKS Cluster**](https://aws.amazon.com/eks/): The central component, managing the Kubernetes control plane and compute nodes
+3. [**EKS Managed Node Groups**](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html): Auto-scaling groups of EC2 instances that serve as EKS compute nodes.
+4. [**Amazon Identity & Access Management**](https://aws.amazon.com/iam/): Integrated with EKS for fine-grained access control.
+5. [**Amazon Elastic Container Registry (ECR)**](http://aws.amazon.com/ecr/): For storing and managing container images.
+6. [**AWS Load Balancer Controller**](https://aws.amazon.com/blogs/networking-and-content-delivery/deploying-aws-load-balancer-controller-on-amazon-eks/): Automatically provisions Application Load Balancers or Network Load Balancers when a Kubernetes service of type LoadBalancer is created.
+7. **Observability Tools**: [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/), [Amazon Managed Grafana](https://aws.amazon.com/grafana/), and [Amazon Managed Service for Prometheus](https://aws.amazon.com/prometheus/) for comprehensive monitoring and logging.
+8. [**Terraform Resources**](https://www.hashicorp.com/products/terraform): Representing  infrastructure-as-code components that define and provision the guidance architecture.
 
 This architecture is designed to provide a secure, scalable, and easily manageable EKS environment, incorporating AWS best practices and ready for production workloads.
 
 ### Architecture diagram
 
-{% include image.html file="eks_wlatb_images/eks_woorkload_ready_cluster_reference_architecture_1.5.jpg" alt="EKS Workload ready cluster reference architecture" %}
+<div align="center">
 
-*Figure 1: EKS Workload ready cluster reference architecture*
+<img src="single-account-single-cluster-multi-env/eks_woorkload_ready_cluster_reference_architecture_NEW.jpg" width=70%>  
+<br/>
+<i>Figure 1: Automated Provisioning of Application-Ready Amazon EKS Clusters </i>
+</div>
 
 ### Architecture Steps
 
-1. DevOps engineer defines a per-environment [Terraform variable file](https://developer.hashicorp.com/terraform/language/values/variables#variable-definitions-tfvars-files){:target="_blank"} that controls all of the environment-specific configuration. This variable file is used in every step of the process by all IaC configurations.
+1. DevOps engineer defines a per-environment [Terraform variable file](https://developer.hashicorp.com/terraform/language/values/variables#variable-definitions-tfvars-files) that controls all of the environment-specific configuration. This variable file is used in every step of the process by all IaC configurations.
 
 2. DevOps engineer applies the environment configuration using Terraform following the deployment process defined in the guidance.
 
-3. An [Amazon Virtual Private Cloud (VPC)](https://aws.amazon.com/vpc/){:target="_blank"} is provisioned and configured based on specified configuration. According to best practices for Reliability, 3 Availability Zones (AZs) are configured with corresponding VPC Endpoints for access to resources deployed in private VPC.
+3. An [Amazon Virtual Private Cloud (VPC)](https://aws.amazon.com/vpc/) is provisioned and configured based on specified configuration. According to best practices for Reliability, 3 Availability Zones (AZs) are configured with corresponding VPC Endpoints for access to resources deployed in private VPC.
 
-4. User-facing [AWS Identity and Access Management (IAM)](https://aws.amazon.com/iam/){:target="_blank"} roles (Cluster Admin, Admin, Editor and Reader) are created for various access levels to EKS cluster resources, as recommended in Kubernetes security best practices.
+4. User-facing [AWS Identity and Access Management (IAM)](https://aws.amazon.com/iam/) roles (Cluster Admin, Admin, Editor and Reader) are created for various access levels to EKS cluster resources, as recommended in Kubernetes security best practices.
 
-5. [Amazon Elastic Kubernetes Service (Amazon EKS)](https://aws.amazon.com/eks/){:target="_blank"} cluster is provisioned with Managed Node Groups that host critical cluster add-ons (CoreDNS, AWS Load Balancer Controller and [Karpenter](https://karpenter.sh/){:target="_blank"}) on its compute node instances. Karpenter manages compute capacity for other add-ons, as well as business applications that will be deployed by users while prioritizing provisioning [AWS Graviton](https://aws.amazon.com/ec2/graviton/){:target="_blank"} based compute node instances for the best price-performance.
+5. [Amazon Elastic Kubernetes Service (Amazon EKS)](https://aws.amazon.com/eks/) cluster is provisioned with Managed Node Groups that host critical cluster add-ons (CoreDNS, AWS Load Balancer Controller and [Karpenter](https://karpenter.sh/)) on its compute node instances. Karpenter manages compute capacity for other add-ons, as well as business applications that will be deployed by users while prioritizing provisioning [AWS Graviton](https://aws.amazon.com/ec2/graviton/) based compute node instances for the best price-performance.
 
 6. Other relevant EKS add-ons are provisioned based on the configurations defined in the per-environment Terraform configuration file.
 
-7. AWS OSS Observability stack is deployed if configured, including [Amazon Managed Service for Prometheus (AMP)](https://aws.amazon.com/prometheus/){:target="_blank"}, [AWS Managed Collector for Amazon EKS](https://docs.aws.amazon.com/prometheus/latest/userguide/AMP-collector.html){:target="_blank"}, and [Amazon Managed Grafana (AMG)](https://aws.amazon.com/grafana/){:target="_blank"}. In addition, a Grafana-operator addon is deployed alongside a set of predefined Grafana dashboards to get started.
+7. AWS OSS Observability stack is deployed if configured, including [Amazon Managed Service for Prometheus (AMP)](https://aws.amazon.com/prometheus/), [AWS Managed Collector for Amazon EKS](https://docs.aws.amazon.com/prometheus/latest/userguide/AMP-collector.html), and [Amazon Managed Grafana (AMG)](https://aws.amazon.com/grafana/). In addition, a Grafana-operator addon is deployed alongside a set of predefined Grafana dashboards to get started.
 
-8. Amazon EKS cluster(s) with critical add-ons, configured managed Observability stack and RBAC based security mapped to IAM roles is available for workload deployment and its Kubernetes API is exposed via an [AWS Network Load Balancer](https://aws.amazon.com/elasticloadbalancing/network-load-balancer/){:target="_blank"}.
+8. Amazon EKS cluster(s) with critical add-ons, configured managed Observability stack and RBAC based security mapped to IAM roles is available for workload deployment and its Kubernetes API is exposed via an [AWS Network Load Balancer](https://aws.amazon.com/elasticloadbalancing/network-load-balancer/).
 
 ### AWS services in this Guidance
 
-
-### AWS services used in this Guidance
-
 | **AWS Service** | **Role** | **Description** |
 |-----------------|----------|-----------------|
-| [Amazon Elastic Kubernetes Service](https://aws.amazon.com/eks/){:target="_blank"} ( EKS) | Core service | Manages the Kubernetes control plane and worker nodes for container orchestration. |
-| [Amazon Elastic Compute Cloud](https://aws.amazon.com/ec2/){:target="_blank"} (EC2) | Core service | Provides the compute instances for EKS worker nodes and runs containerized applications. |
-| [Amazon Virtual Private Cloud](https://aws.amazon.com/vpc/){:target="_blank"} (VPC) | Core Service | Creates an isolated network environment with public and private subnets across multiple Availability Zones. |
-| [Amazon Elastic Container Registry](http://aws.amazon.com/ecr/){:target="_blank"} (ECR) | Supporting service | Stores and manages Docker container images for EKS deployments. |
-| [Elastic Load Balancing](https://aws.amazon.com/elasticloadbalancing/){:target="_blank"} (NLB) | Supporting service | Distributes incoming traffic across multiple targets in the EKS cluster. |
-| [Amazon Elastic Block Store](https://aws.amazon.com/ebs){:target="_blank"} (EBS) | Supporting service | Provides persistent block storage volumes for EC2 instances in the EKS cluster. |
-| [AWS Identity and Access Management](https://aws.amazon.com/iam/){:target="_blank"} (IAM) | Supporting service | Manages access to AWS services and resources securely, including EKS cluster access. |
-| [Amazon Managed Grafana](https://aws.amazon.com/grafana/){:target="_blank"} (AMG) | Observability service | Provides fully managed  service for metrics visualization and monitoring. |
-| [Amazon Managed Service for Prometheus](https://aws.amazon.com/prometheus/){:target="_blank"} (AMP) | Observability service | Offers managed Prometheus-compatible monitoring for container metrics. |
-| [AWS Certificate Manager](https://aws.amazon.com/certificate-manager/){:target="_blank"} (ACM) | Security service | Manages SSL/TLS certificates for secure communication within the cluster. |
-| [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/){:target="_blank"} | Monitoring service | Collects and tracks metrics, logs, and events from EKS and other AWS resources provisoned in the guidance |
-| [AWS Systems Manager](https://aws.amazon.com/systems-manager/){:target="_blank"} | Management service | Provides operational insights and takes action on AWS resources. |
-| [AWS Key Management Service](https://aws.amazon.com/kms/){:target="_blank"} (KMS) | Security service | Manages encryption keys for securing data in EKS and other AWS services. |
+| [Amazon Elastic Kubernetes Service](https://aws.amazon.com/eks/) ( EKS) | Core service | Manages the Kubernetes control plane and worker nodes for container orchestration. |
+| [Amazon Elastic Compute Cloud](https://aws.amazon.com/ec2/) (EC2) | Core service | Provides the compute instances for EKS worker nodes and runs containerized applications. |
+| [Amazon Virtual Private Cloud](https://aws.amazon.com/vpc/) (VPC) | Core Service | Creates an isolated network environment with public and private subnets across multiple Availability Zones. |
+| [Amazon Elastic Container Registry](http://aws.amazon.com/ecr/) (ECR) | Supporting service | Stores and manages Docker container images for EKS deployments. |
+| [Elastic Load Balancing](https://aws.amazon.com/elasticloadbalancing/) (NLB) | Supporting service | Distributes incoming traffic across multiple targets in the EKS cluster. |
+| [Amazon Elastic Block Store](https://aws.amazon.com/ebs) (EBS) | Supporting service | Provides persistent block storage volumes for EC2 instances in the EKS cluster. |
+| [AWS Identity and Access Management](https://aws.amazon.com/iam/) (IAM) | Supporting service | Manages access to AWS services and resources securely, including EKS cluster access. |
+| [Amazon Managed Grafana](https://aws.amazon.com/grafana/) (AMG) | Observability service | Provides fully managed  service for metrics visualization and monitoring. |
+| [Amazon Managed Service for Prometheus](https://aws.amazon.com/prometheus/) (AMP) | Observability service | Offers managed Prometheus-compatible monitoring for container metrics. |
+| [AWS Certificate Manager](https://aws.amazon.com/certificate-manager/) (ACM) | Security service | Manages SSL/TLS certificates for secure communication within the cluster. |
+| [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/) | Monitoring service | Collects and tracks metrics, logs, and events from EKS and other AWS resources provisoned in the guidance |
+| [AWS Systems Manager](https://aws.amazon.com/systems-manager/) | Management service | Provides operational insights and takes action on AWS resources. |
+| [AWS Key Management Service](https://aws.amazon.com/kms/) (KMS) | Security service | Manages encryption keys for securing data in EKS and other AWS services. |
 
 ## Plan your deployment
 
 ### Cost
 
-You are responsible for the cost of the AWS services used while running this guidance. As of August 2024, the cost for running this guidance with the default settings in the US East (N. Virginia) Region is approximately **$447.47/month**.
+You are responsible for the cost of the AWS services used while running this guidance. 
+As of August 2024, the cost for running this guidance with the default settings in the US East (N. Virginia) Region is approximately **$447.47/month**.
 
-We recommend creating a [budget](https://alpha-docs-aws.amazon.com/awsaccountbilling/latest/aboutv2/budgets-create.html){:target="_blank"} through [AWS Cost Explorer](http://aws.amazon.com/aws-cost-management/aws-cost-explorer/){:target="_blank"} to help manage costs. Prices are subject to change. For full details, refer to the pricing webpage for each AWS service used in this guidance.
+We recommend creating a [budget](https://alpha-docs-aws.amazon.com/awsaccountbilling/latest/aboutv2/budgets-create.html) through [AWS Cost Explorer](http://aws.amazon.com/aws-cost-management/aws-cost-explorer/) to help manage costs. Prices are subject to change. For full details, refer to the pricing webpage for each AWS service used in this guidance.
 
 ### Sample cost table
 
@@ -154,11 +156,11 @@ The following table provides a sample cost breakdown for deploying this guidance
 | Amazon ECR | Data storage | $0.50 |
 | **TOTAL** |  | **$447.47/month** |
 
-For a more accurate estimate based on your specific configuration and usage patterns, we recommend using the [AWS Pricing Calculator](https://calculator.aws/#/estimate?id=f7d5ed42a589a98751a13560cfd06c8824fc68b7){:target="_blank"}.
+For a more accurate estimate based on your specific configuration and usage patterns, we recommend using the [AWS Pricing Calculator](https://calculator.aws/#/estimate?id=f7d5ed42a589a98751a13560cfd06c8824fc68b7).
 
 ## Security
 
-When you build systems on AWS infrastructure, security responsibilities are shared between you and AWS. This [shared responsibility model](https://aws.amazon.com/compliance/shared-responsibility-model/){:target="_blank"} reduces your operational burden because AWS operates, manages, and controls the components including the host operating system, the virtualization layer, and the physical security of the facilities in which the services operate. For more information about AWS security, visit [AWS Cloud Security](http://aws.amazon.com/security/){:target="_blank"}.
+When you build systems on AWS infrastructure, security responsibilities are shared between you and AWS. This [shared responsibility model](https://aws.amazon.com/compliance/shared-responsibility-model/) reduces your operational burden because AWS operates, manages, and controls the components including the host operating system, the virtualization layer, and the physical security of the facilities in which the services operate. For more information about AWS security, visit [AWS Cloud Security](http://aws.amazon.com/security/).
 
 This guidance implements several security best practices and AWS services to enhance the security posture of your EKS Workload Ready Cluster. Here are the key security components and considerations:
 
@@ -204,7 +206,6 @@ This guidance implements several security best practices and AWS services to enh
 - Implement proper logging and auditing mechanisms for both AWS and Kubernetes resources.
 - Regularly review and rotate IAM and Kubernetes RBAC permissions.
 
-
 ## Supported AWS Regions
 
 The core components of the Guidance for Automated Provisioning of Application-Ready Amazon EKS Clusters are available in all AWS Regions where Amazon EKS is supported.
@@ -233,22 +234,21 @@ The observability components of this guidance use Amazon Managed Service for Pro
 
 The core components of this Guidance can be deployed in any AWS Region where Amazon EKS is available. This includes all commercial AWS Regions except for the China Regions and the AWS GovCloud (US) Regions.
 
-For the most current availability of AWS services by Region, refer to the [AWS Regional Services List](https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services/){:target="_blank"}.
+For the most current availability of AWS services by Region, refer to the [AWS Regional Services List](https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services/).
 
 Note: If you deploy this guidance into a region where AMP and/or AMG are not available, you can disable the OSS observability tooling during deployment. This allows you to use the core components of the guidance without built-in observability features.
 
 ### Quotas
 
-{{% notice info %}}
+**NOTICE**
 Service quotas, also referred to as limits, are the maximum number of service resources or operations for your AWS account.
-{{% /notice %}}
 
 
 ### Quotas for AWS services in this Guidance
 
-Ensure you have sufficient quota for each of the AWS services utilized in this guidance. For more details, refer to [AWS service quotas](https://docs.aws.amazon.com/general/latest/gr/aws_service_limits.html){:target="_blank"}.
+Ensure you have sufficient quota for each of the AWS services utilized in this guidance. For more details, refer to [AWS service quotas](https://docs.aws.amazon.com/general/latest/gr/aws_service_limits.html).
 
-If you need to view service quotas across all AWS services within the documentation, you can conveniently access this information in the [Service endpoints and quotas](https://docs.aws.amazon.com/general/latest/gr/aws-general.pdf#aws-service-information){:target="_blank"} page in the PDF.
+If you need to view service quotas across all AWS services within the documentation, you can conveniently access this information in the [Service endpoints and quotas](https://docs.aws.amazon.com/general/latest/gr/aws-general.pdf#aws-service-information) page in the PDF.
 
 For specific implementation quotas, consider the following key components and services used in this guidance:
 
@@ -269,7 +269,7 @@ Before deploying this guidance, please ensure you have met the following prerequ
 
 1. **AWS Account and Permissions**: Ensure you have an active AWS account with appropriate permissions to create and manage AWS resources like Amazon EKS, EC2, IAM, and VPC.
 
-2. **AWS CLI and Terraform Installation**: Install and configure the [AWS CLI](https://aws.amazon.com/cli/){:target="_blank"} and [Terraform](https://www.terraform.io/downloads.html){:target="_blank"} tools on your local machine.
+2. **AWS CLI and Terraform Installation**: Install and configure the [AWS CLI](https://aws.amazon.com/cli/) and [Terraform](https://www.terraform.io/downloads.html) tools on your local machine.
 
 3. **Makefile Setup**: This guidance uses a `Makefile` to automate various tasks related to managing the Terraform infrastructure. Ensure `make` utility is installed on your system.
 
@@ -283,8 +283,11 @@ Before deploying this guidance, please ensure you have met the following prerequ
 
 8. **Observability Tools (Optional)**: If using the AWS OSS observability stack, ensure the necessary services like Amazon Managed Service for Prometheus and Amazon Managed Grafana are configured. Since AMG uses [IAM Identity Center](https://docs.aws.amazon.com/grafana/latest/userguide/authentication-in-AMG-SSO.html) to provide authentication to its Workspace, you'll have to enable IAM Identity center before deploying this pattern.
 
+<!--
+For further examples, refer to [Dynamic Object and Rule Extensions for AWS Network Firewall](https://docs.aws.amazon.com/solutions/latest/dynamic-object-and-rule-extensions-for-aws-network-firewall/deployment.html) and [Scale-Out Computing on AWS](https://docs.aws.amazon.com/solutions/latest/scale-out-computing-on-aws/deployment.html).
+-->
 
-For further examples, refer to [Dynamic Object and Rule Extensions for AWS Network Firewall](https://docs.aws.amazon.com/solutions/latest/dynamic-object-and-rule-extensions-for-aws-network-firewall/deployment.html){:target="_blank"} and [Scale-Out Computing on AWS](https://docs.aws.amazon.com/solutions/latest/scale-out-computing-on-aws/deployment.html){:target="_blank"}.
+Please refer to [FULL IMPLEMENTATION GUIDE](https://implementationguides.kits.eventoutfitters.aws.dev/eks-wlatb-0522/compute/deployment-of-amazon-eks-workload-accelerator-with-terraform-blueprint.html) for detailed instructions for all deployment options.
 
 ## License
 
