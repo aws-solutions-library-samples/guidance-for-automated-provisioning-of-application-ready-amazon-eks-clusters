@@ -10,7 +10,8 @@
 2. [Prerequisites](#prerequisites)
   - [Operating System](#operating-system)
   - [Third-Party Tools](#third-party-tools)
-3. [Deployment Steps](#deployment-steps)
+3. [Deployment Steps](#deploy-the-guidance)
+4. [License](#license)
 
 ## Overview
 
@@ -83,7 +84,7 @@ Key elements of the architecture include:
 
 This architecture is designed to provide a secure, scalable, and easily manageable EKS environment, incorporating AWS best practices and ready for production workloads.
 
-### Architecture diagram
+### Architecture Diagram
 
 <div align="center">
 
@@ -242,7 +243,6 @@ Note: If you deploy this guidance into a region where AMP and/or AMG are not ava
 
 **NOTICE**
 Service quotas, also referred to as limits, are the maximum number of service resources or operations for your AWS account.
-
 
 ### Quotas for AWS services in this Guidance
 
