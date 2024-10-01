@@ -3,8 +3,9 @@
 ## Table of Contents
 
 1. [Overview](#overview)
-  - [Features and Benefits](#features-and-benefits) 
-  - [Architecture](#architecture)
+  - [Features and Benefits](#features-and-benefits)
+  - [Use cases](#use-cases) 
+  - [Architecture](#architecture-overview)
   - [AWS services in this Guidance](#aws-services-in-this-guidance)
   - [Cost](#cost)
 2. [Prerequisites](#prerequisites)
@@ -15,13 +16,13 @@
 
 ## Overview
 
-The Guidance for Automated Provisioning of Application-Ready Amazon EKS Clusters is a collection of reference implementations for Amazon Elastic Kubernetes Service (EKS) designed to accelerate time it takes to launch a workload-ready EKS cluster. It includes an "opinionated" set of pre-configured and integrated tools/add-ons, and follows best practices to support core capabilities including Autoscaling, Observability, Networking and Security.
+The Guidance for Automated Provisioning of Application-Ready Amazon EKS Clusters is a collection of reference implementations for Amazon Elastic Kubernetes Service (EKS) designed to accelerate time it takes to launch a workload-ready EKS cluster. It includes an "opinionated" set of pre-configured and integrated tools/add-ons and follows best practices to support core capabilities including Autoscaling, Observability, Networking and Security.
 
 This guidance addresses the following key points:
 
 - Provides a simplified process for setting up an application-ready EKS cluster.
 - Includes pre-configured tools and add-ons to support essential capabilities.
-- Aims to reduce the learning curve associated with deploying the first application-ready EKS cluster.
+- Aims to reduce the learning curve associated with deploying an application-ready EKS cluster.
 - Allows users to focus on deploying and testing applications rather than cluster setup.
 
 The motivation behind this project is to accelerate and simplify the process of setting up a cluster that is ready to support applications and workloads. We've heard from customers that there can be a learning curve associated with deploying your first application ready EKS cluster. This project aims to simplify the undifferentiated lifting, allowing you to focus on deploying and testing your applications.
