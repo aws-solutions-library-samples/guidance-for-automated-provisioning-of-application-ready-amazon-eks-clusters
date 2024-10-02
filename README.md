@@ -99,13 +99,13 @@ This architecture is designed to provide a secure, scalable, and easily manageab
 
 2. DevOps engineer applies the environment configuration using Terraform following the deployment process defined in the guidance.
 
-3. An [Amazon Virtual Private Cloud (VPC)](https://aws.amazon.com/vpc/) is provisioned and configured based on specified configuration. According to best practices for Reliability, 3 Availability Zones (AZs) are configured with corresponding VPC Endpoints for access to resources deployed in private VPC.
+3. An [Amazon Virtual Private Cloud (VPC)](https://aws.amazon.com/vpc/) is provisioned and configured based on specified configuration. According to best practices for Reliability, 3 Availability Zones (AZs) are configured with corresponding VPC Endpoints for access to resources deployed in private VPC. Provisioned resources including Amazon Elastic Container Registry (Amazon ECR), Amazon EKS, Amazon Elastic Compute Cloud (Amazon EC2), and Amazon Elastic Block Store (Amazon EBS) are available via corresponding endpoints.
 
 4. User-facing [AWS Identity and Access Management (IAM)](https://aws.amazon.com/iam/) roles (Cluster Admin, Admin, Editor and Reader) are created for various access levels to EKS cluster resources, as recommended in Kubernetes security best practices.
 
 5. [Amazon Elastic Kubernetes Service (Amazon EKS)](https://aws.amazon.com/eks/) cluster is provisioned with Managed Node Groups that host critical cluster add-ons (CoreDNS, AWS Load Balancer Controller and [Karpenter](https://karpenter.sh/)) on its compute node instances. Karpenter manages compute capacity for other add-ons, as well as business applications that will be deployed by users while prioritizing provisioning [AWS Graviton](https://aws.amazon.com/ec2/graviton/) based compute node instances for the best price-performance.
 
-6. Other relevant EKS add-ons are provisioned based on the configurations defined in the per-environment Terraform configuration file.
+6. Other important EKS add-ons are provisioned based on the configurations defined in the per-environment Terraform configuration file.
 
 7. AWS OSS Observability stack is deployed if configured, including [Amazon Managed Service for Prometheus (AMP)](https://aws.amazon.com/prometheus/), [AWS Managed Collector for Amazon EKS](https://docs.aws.amazon.com/prometheus/latest/userguide/AMP-collector.html), and [Amazon Managed Grafana (AMG)](https://aws.amazon.com/grafana/). In addition, a Grafana-operator addon is deployed alongside a set of predefined Grafana dashboards to get started.
 
