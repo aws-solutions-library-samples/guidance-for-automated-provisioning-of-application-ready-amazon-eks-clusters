@@ -99,7 +99,7 @@ This architecture is designed to provide a secure, scalable, and easily manageab
 
 2. DevOps engineer applies the environment configuration using Terraform following the deployment process defined in the guidance.
 
-3. An [Amazon Virtual Private Cloud (VPC)](https://aws.amazon.com/vpc/) is provisioned and configured based on specified configuration. According to best practices for Reliability, 3 Availability Zones (AZs) are configured with VPC Endpoints for access to resources deployed in private VPC. Provisioned resources including Amazon Elastic Container Registry (Amazon ECR), Amazon EKS, Amazon Elastic Compute Cloud (Amazon EC2), and Amazon Elastic Block Store (Amazon EBS) are available via corresponding VPC endpoints.
+3. An [Amazon Virtual Private Cloud (VPC)](https://aws.amazon.com/vpc/) is provisioned and configured based on specified configuration. According to best practices for Reliability, 3 Availability Zones (AZs) are configured with VPC Endpoints for access to resources deployed in private VPC. Provisioned resources for private clusters, including [Amazon Elastic Container Registry (Amazon ECR)](http://aws.amazon.com/ecr/), Amazon EKS, [Amazon Elastic Compute Cloud (Amazon EC2)](http://aws.amazon.com/ec2/), and [Amazon Elastic Block Store (Amazon EBS)](http://aws.amazon.com/ebs/) are available via corresponding VPC endpoints.
 
 4. User-facing [AWS Identity and Access Management (IAM)](https://aws.amazon.com/iam/) roles (Cluster Admin, Admin, Editor and Reader) are created for various access levels to EKS cluster resources, as recommended in Kubernetes security best practices.
 
@@ -288,7 +288,7 @@ For further examples, refer to [Dynamic Object and Rule Extensions for AWS Netwo
 -->
 ### Deployment Instructions
 
-Please refer to [FULL IMPLEMENTATION GUIDE](https://implementationguides.kits.eventoutfitters.aws.dev/eks-wlatb-0522/compute/deployment-of-amazon-eks-workload-accelerator-with-terraform-blueprint.html) for detailed instructions for all deployment options.
+Please refer to [Full Implementation Guide](https://aws-solutions-library-samples.github.io/compute/automated-provisioning-of-application-ready-amazon-eks-clusters.html) for detailed instructions for all deployment options.
 
 ## License
 
