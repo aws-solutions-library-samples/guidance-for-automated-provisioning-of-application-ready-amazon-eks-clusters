@@ -99,7 +99,7 @@ This architecture is designed to provide a secure, scalable, and easily manageab
 
 2. DevOps engineer applies the environment configuration using Terraform following the deployment process defined in the guidance.
 
-3. An [Amazon Virtual Private Cloud (VPC)](https://aws.amazon.com/vpc/) is provisioned and configured based on specified configuration. According to best practices for Reliability, 3 Availability Zones (AZs) are configured with VPC Endpoints for access to resources deployed in private VPC. Provisioned resources for private clusters, including [Amazon Elastic Container Registry (Amazon ECR)](http://aws.amazon.com/ecr/), Amazon EKS, [Amazon Elastic Compute Cloud (Amazon EC2)](http://aws.amazon.com/ec2/), and [Amazon Elastic Block Store (Amazon EBS)](http://aws.amazon.com/ebs/) are available via corresponding VPC endpoints.
+3. An [Amazon Virtual Private Cloud (VPC)](https://aws.amazon.com/vpc/) is provisioned and configured based on specified configuration. According to best practices for Reliability, 3 Availability Zones (AZs) are configured with VPC Endpoints for access to resources deployed in private VPC. Provisioned resources for private clusters, including [Amazon Elastic Container Registry (Amazon ECR)](http://aws.amazon.com/ecr/), [Amazon EKS]((https://aws.amazon.com/eks/), [Amazon Elastic Compute Cloud (Amazon EC2)](http://aws.amazon.com/ec2/), and [Amazon Elastic Block Store (Amazon EBS)](http://aws.amazon.com/ebs/) are available via corresponding VPC endpoints.
 
 4. User-facing [AWS Identity and Access Management (IAM)](https://aws.amazon.com/iam/) roles (Cluster Admin, Admin, Editor and Reader) are created for various access levels to EKS cluster resources, as recommended in Kubernetes security best practices.
 
