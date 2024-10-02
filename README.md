@@ -88,10 +88,9 @@ This architecture is designed to provide a secure, scalable, and easily manageab
 ### Architecture Diagram
 
 <div align="center">
-
-<img src="single-account-single-cluster-multi-env/eks_woorkload_ready_cluster_reference_architecture_NEW.jpg" width=70%>  
+<img src="single-account-single-cluster-multi-env/automated-provisioning-of-application-ready-amazon-eks-clusters.png" width=70%> 
 <br/>
-<i>Figure 1: Automated Provisioning of Application-Ready Amazon EKS Clusters </i>
+<i>Figure 1:  Application-Ready Amazon EKS Cluster Reference architecture </i>
 </div>
 
 ### Architecture Steps
@@ -287,6 +286,7 @@ Before deploying this guidance, please ensure you have met the following prerequ
 <!--
 For further examples, refer to [Dynamic Object and Rule Extensions for AWS Network Firewall](https://docs.aws.amazon.com/solutions/latest/dynamic-object-and-rule-extensions-for-aws-network-firewall/deployment.html) and [Scale-Out Computing on AWS](https://docs.aws.amazon.com/solutions/latest/scale-out-computing-on-aws/deployment.html).
 -->
+### Deployment Instructions
 
 Please refer to [FULL IMPLEMENTATION GUIDE](https://implementationguides.kits.eventoutfitters.aws.dev/eks-wlatb-0522/compute/deployment-of-amazon-eks-workload-accelerator-with-terraform-blueprint.html) for detailed instructions for all deployment options.
 
