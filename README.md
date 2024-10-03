@@ -157,7 +157,7 @@ The following table provides a sample cost breakdown for deploying this guidance
 | Amazon ECR | Data storage | $0.50 |
 | **TOTAL** |  | **$447.47/month** |
 
-For a more accurate estimate based on your specific configuration and usage patterns, we recommend using the [AWS Pricing Calculator](https://calculator.aws/#/estimate?id=f7d5ed42a589a98751a13560cfd06c8824fc68b7).
+For a more accurate estimate based on your specific configuration and usage patterns, we recommend using the [AWS Pricing Calculator](https://calculator.aws).
 
 ## Security
 
