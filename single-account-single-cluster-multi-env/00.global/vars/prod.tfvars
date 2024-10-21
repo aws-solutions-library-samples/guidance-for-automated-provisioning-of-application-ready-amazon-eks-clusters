@@ -25,3 +25,4 @@ observability_configuration = {
     enable_grafana_operator  = true
 
   }
+}
