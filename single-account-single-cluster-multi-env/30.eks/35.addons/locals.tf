@@ -1,4 +1,6 @@
 locals {
+  region         = data.aws_region.current.id
+  tfstate_region = try(var.tfstate_region, local.region)
   critical_addons_tolerations = {
     tolerations = [
       {

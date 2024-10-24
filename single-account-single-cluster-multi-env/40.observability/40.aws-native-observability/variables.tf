@@ -1,10 +1,15 @@
+variable "tfstate_region" {
+  description = "region where the terraform state is stored"
+  type        = string
+  default     = null
+}
+
 variable "tags" {
   description = "Tags to apply to resources"
   type        = map(string)
-  default = {
-
-  }
+  default     = {}
 }
+
 variable "observability_configuration" {
   description = "observability configuration variable"
   type = object({
