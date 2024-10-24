@@ -1,9 +1,13 @@
+variable "tfstate_region" {
+  description = "region where the terraform state is stored"
+  type        = string
+  default     = null
+}
+
 variable "tags" {
   description = "Tags to apply to resources"
   type        = map(string)
-  default = {
-
-  }
+  default = {}
 }
 
 variable "observability_configuration" {
@@ -14,18 +18,3 @@ variable "observability_configuration" {
     aws_oss_tooling_config = optional(map(any), {})
   })
 }
-
-# variable "observability_configuration" {
-#   description = "observability configuration variable"
-
-#   type = object({
-#     aws_oss_tooling    = bool
-#     aws_native_tooling = bool
-#     aws_oss_tooling_config = object({
-#       enable_managed_collector = bool
-#       enable_adot_collector    = bool
-#       prometheus_name          = string
-#       enable_grafana_operator  = bool
-#     })
-#   })
-# }

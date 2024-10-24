@@ -1,3 +1,9 @@
+variable "tfstate_region" {
+  description = "region where the terraform state is stored"
+  type        = string
+  default     = null
+}
+
 variable "observability_configuration" {
   description = "observability configuration variable"
   type = object({
@@ -5,8 +11,6 @@ variable "observability_configuration" {
     aws_native_tooling     = optional(bool, false) // CW
     aws_oss_tooling_config = optional(map(any), {})
   })
-
-
   default = {
     aws_oss_tooling    = true
     aws_native_tooling = false

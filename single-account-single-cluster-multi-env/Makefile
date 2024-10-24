@@ -6,9 +6,12 @@ ENVIRONMENT ?= dev
 AWS_REGION ?= $(shell aws configure get region)
 AWS_ACCOUNT_ID ?= $(shell aws sts get-caller-identity --output json | jq -r '.Account')
 TFSTATE_S3_BUCKET ?= "tfstate-$(AWS_ACCOUNT_ID)"
-TFSTATE_REGION ?= $(shell aws configure get region)
+TFSTATE_REGION ?= $(AWS_REGION)
 TFSTATE_DDB_TABLE ?= "tfstate-lock"
 VAR_FILE := $(CURDIR)/00.global/vars/$(ENVIRONMENT).tfvars
+
+TF_VAR_tfstate_region := $(TFSTATE_REGION)
+export TF_VAR_tfstate_region
 
 MODULES = $(shell find . -type f -name "backend.tf" -exec dirname {} \; | sort -u )
 

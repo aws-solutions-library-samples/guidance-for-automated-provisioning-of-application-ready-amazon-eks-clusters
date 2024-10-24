@@ -1,11 +1,8 @@
-
-# variable "kubernetes_version" {
-#   description = "EKS version"
-#   type        = string
-#   default     = "1.28"
-# }
-
-
+variable "tfstate_region" {
+  description = "region where the terraform state is stored"
+  type        = string
+  default     = null
+}
 
 variable "kms_key_admin_roles" {
   description = "list of role ARNs to add to the KMS policy"
@@ -14,13 +11,10 @@ variable "kms_key_admin_roles" {
 
 }
 
-
 variable "tags" {
   description = "Tags to apply to resources"
   type        = map(string)
-  default = {
-
-  }
+  default     = {}
 }
 
 variable "cluster_config" {
