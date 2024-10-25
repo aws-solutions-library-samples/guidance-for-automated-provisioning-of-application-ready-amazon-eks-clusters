@@ -27,6 +27,9 @@ module "eks" {
   cluster_version                = local.cluster_version
   cluster_endpoint_public_access = try(!var.cluster_config.private_eks_cluster, false)
 
+  create_iam_role = try(var.cluster_config.create_iam_role, true)
+  iam_role_arn    = try(var.cluster_config.cluster_iam_role_arn, null)
+
   cluster_enabled_log_types = ["audit", "api", "authenticator", "controllerManager", "scheduler"]
 
   vpc_id                   = data.terraform_remote_state.vpc.outputs.vpc_id
