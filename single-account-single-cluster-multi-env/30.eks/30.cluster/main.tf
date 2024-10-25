@@ -27,7 +27,7 @@ module "eks" {
   cluster_version                = local.cluster_version
   cluster_endpoint_public_access = try(!var.cluster_config.private_eks_cluster, false)
 
-  cluster_enabled_log_types      = ["audit", "api", "authenticator", "controllerManager", "scheduler"]
+  cluster_enabled_log_types = ["audit", "api", "authenticator", "controllerManager", "scheduler"]
 
   vpc_id                   = data.terraform_remote_state.vpc.outputs.vpc_id
   subnet_ids               = data.terraform_remote_state.vpc.outputs.private_subnet_ids
@@ -51,7 +51,7 @@ module "eks" {
       # Specify the VPC CNI addon should be deployed before compute to ensure
       # the addon is configured before data plane compute resources are created
       before_compute = true
-      most_recent = true # To ensure access to the latest settings provided
+      most_recent    = true # To ensure access to the latest settings provided
       configuration_values = jsonencode({
         env = {
           ENABLE_PREFIX_DELEGATION = "false"
@@ -81,10 +81,11 @@ module "eks" {
     eks-pod-identity-agent = {
       most_recent = true
     }
-  },
+    },
     local.enable_blockstorage ? {
       aws-ebs-csi-driver = {
         service_account_role_arn = module.ebs_csi_driver_irsa[0].iam_role_arn
+        preserve                 = false
       }
     } : {}
   )
@@ -234,7 +235,7 @@ resource "aws_eks_access_entry" "karpenter_node" {
 # EBS CSI Driver
 ################################################################################
 module "ebs_csi_driver_irsa" {
-  count = local.enable_blockstorage ? 1 : 0
+  count   = local.enable_blockstorage ? 1 : 0
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
   version = "~> 5.43"
 
@@ -308,7 +309,7 @@ resource "kubectl_manifest" "karpenter_manifests" {
 # Storage Classes
 ################################################################################
 resource "kubernetes_annotations" "gp2" {
-  count = local.enable_blockstorage ? 1 : 0
+  count       = local.enable_blockstorage ? 1 : 0
   api_version = "storage.k8s.io/v1"
   kind        = "StorageClass"
   force       = "true"
@@ -319,7 +320,7 @@ resource "kubernetes_annotations" "gp2" {
     "storageclass.kubernetes.io/is-default-class" = "false"
   }
   depends_on = [
-    module.eks_blueprints_addons
+    module.eks
   ]
 }
 
@@ -341,6 +342,6 @@ resource "kubernetes_storage_class_v1" "gp3" {
     type      = "gp3"
   }
   depends_on = [
-    module.eks_blueprints_addons
+    module.eks
   ]
 }
