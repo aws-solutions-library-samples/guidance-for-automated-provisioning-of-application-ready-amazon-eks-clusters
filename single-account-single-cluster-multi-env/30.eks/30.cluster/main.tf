@@ -46,43 +46,52 @@ module "eks" {
 
   bootstrap_self_managed_addons = "false"
 
-  cluster_addons = merge({
-    vpc-cni = {
-      # Specify the VPC CNI addon should be deployed before compute to ensure
-      # the addon is configured before data plane compute resources are created
-      before_compute = true
-      most_recent    = true # To ensure access to the latest settings provided
-      configuration_values = jsonencode({
-        env = {
-          ENABLE_PREFIX_DELEGATION = "false"
-          WARM_ENI_TARGET          = "0"
-          MINIMUM_IP_TARGET        = "10"
-          WARM_IP_TARGET           = "5"
-        }
-      })
-    }
-    coredns = {
-      resolve_conflicts_on_create = "OVERWRITE"
-      resolve_conflicts_on_update = "PRESERVE"
-      preserve                    = true
-      most_recent                 = true
-      configuration_values = jsonencode(
-        {
-          replicaCount : 2,
-          tolerations : [local.critical_addons_tolerations.tolerations[0]]
-        }
-      )
-    }
-    kube-proxy = {
-      before_compute = true
-      most_recent    = true
-    }
-
-    eks-pod-identity-agent = {
-      most_recent = true
-    }
-    },
-    local.enable_blockstorage ? {
+  cluster_addons = merge(
+    local.capabilities.networking ? {
+      vpc-cni = {
+        # Specify the VPC CNI addon should be deployed before compute to ensure
+        # the addon is configured before data plane compute resources are created
+        before_compute = true
+        most_recent    = true # To ensure access to the latest settings provided
+        preserve       = false
+        configuration_values = jsonencode({
+          env = {
+            ENABLE_PREFIX_DELEGATION = "false"
+            WARM_ENI_TARGET          = "0"
+            MINIMUM_IP_TARGET        = "10"
+            WARM_IP_TARGET           = "5"
+          }
+        })
+      }
+    } : {},
+    local.capabilities.networking ? {
+      kube-proxy = {
+        before_compute = true
+        most_recent    = true
+        preserve       = false
+      }
+    } : {},
+    local.capabilities.coredns ? {
+      coredns = {
+        resolve_conflicts_on_create = "OVERWRITE"
+        resolve_conflicts_on_update = "PRESERVE"
+        preserve                    = false
+        most_recent                 = true
+        configuration_values = jsonencode(
+          {
+            replicaCount : 2,
+            tolerations : [local.critical_addons_tolerations.tolerations[0]]
+          }
+        )
+      }
+    } : {},
+    local.capabilities.identity ? {
+      eks-pod-identity-agent = {
+        most_recent = true
+        preserve    = false
+      }
+    } : {},
+    local.capabilities.blockstorage ? {
       aws-ebs-csi-driver = {
         service_account_role_arn = module.ebs_csi_driver_irsa[0].iam_role_arn
         preserve                 = false
@@ -162,7 +171,7 @@ module "eks" {
   }
   eks_managed_node_groups = {
     "${local.cluster_name}-criticaladdons" = {
-
+      create                   = try(var.cluster_config.create_mng_system, true)
       iam_role_use_name_prefix = false
       subnet_ids               = data.terraform_remote_state.vpc.outputs.private_subnet_ids
       max_size                 = 8
@@ -176,10 +185,8 @@ module "eks" {
         }
       }
     }
-
   }
   tags = local.tags
-
 }
 
 
@@ -221,7 +228,7 @@ resource "aws_ec2_tag" "cluster_primary_security_group" {
 # Cluster Access Management - permissions of Karpenter node Role
 ################################################################################
 resource "aws_eks_access_entry" "karpenter_node" {
-  count         = local.enable_karpenter ? 1 : 0
+  count         = local.capabilities.autoscaling ? 1 : 0
   cluster_name  = module.eks.cluster_name
   principal_arn = module.eks_blueprints_addons.karpenter.node_iam_role_arn
 
@@ -235,7 +242,7 @@ resource "aws_eks_access_entry" "karpenter_node" {
 # EBS CSI Driver
 ################################################################################
 module "ebs_csi_driver_irsa" {
-  count   = local.enable_blockstorage ? 1 : 0
+  count   = local.capabilities.blockstorage ? 1 : 0
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
   version = "~> 5.43"
 
@@ -272,7 +279,7 @@ module "eks_blueprints_addons" {
 
   # by default, Karpenter helm chart is set to not schedule Karpenter pods, on nodes it creates,
   #  so no additional nodeSelector is needed here to ensure it'll run on the above node-groups
-  enable_karpenter = local.enable_karpenter
+  enable_karpenter = local.capabilities.autoscaling
   karpenter = {
     repository_username = data.aws_ecrpublic_authorization_token.token.user_name
     repository_password = data.aws_ecrpublic_authorization_token.token.password
@@ -290,7 +297,7 @@ module "eks_blueprints_addons" {
 }
 
 data "kubectl_path_documents" "karpenter_manifests" {
-  count   = local.enable_karpenter ? 1 : 0
+  count   = local.capabilities.autoscaling ? 1 : 0
   pattern = "${path.module}/karpenter/*.yaml"
   vars = {
     role         = module.eks_blueprints_addons.karpenter.node_iam_role_name
@@ -300,7 +307,7 @@ data "kubectl_path_documents" "karpenter_manifests" {
 }
 
 resource "kubectl_manifest" "karpenter_manifests" {
-  count      = local.enable_karpenter ? length(data.kubectl_path_documents.karpenter_manifests[0].documents) : 0
+  count      = local.capabilities.autoscaling ? length(data.kubectl_path_documents.karpenter_manifests[0].documents) : 0
   yaml_body  = element(data.kubectl_path_documents.karpenter_manifests[0].documents, count.index)
   depends_on = [module.eks_blueprints_addons]
 }
@@ -309,7 +316,7 @@ resource "kubectl_manifest" "karpenter_manifests" {
 # Storage Classes
 ################################################################################
 resource "kubernetes_annotations" "gp2" {
-  count       = local.enable_blockstorage ? 1 : 0
+  count       = local.capabilities.blockstorage ? 1 : 0
   api_version = "storage.k8s.io/v1"
   kind        = "StorageClass"
   force       = "true"
@@ -325,7 +332,7 @@ resource "kubernetes_annotations" "gp2" {
 }
 
 resource "kubernetes_storage_class_v1" "gp3" {
-  count = local.enable_blockstorage ? 1 : 0
+  count = local.capabilities.blockstorage ? 1 : 0
   metadata {
     name = "gp3"
     annotations = {

@@ -4,8 +4,13 @@ locals {
   tfstate_region  = try(var.tfstate_region, local.region)
   cluster_version = var.cluster_config.kubernetes_version
 
-  enable_karpenter    = try(var.cluster_config.autoscaling_karpenter, true)
-  enable_blockstorage = try(var.cluster_config.enable_blockstorage, true)
+  capabilities = {
+    networking   = try(var.cluster_config.capabilities.networking, true)
+    coredns      = try(var.cluster_config.capabilities.coredns, true)
+    identity     = try(var.cluster_config.capabilities.identity, true)
+    autoscaling  = try(var.cluster_config.capabilities.autoscaling, true)
+    blockstorage = try(var.cluster_config.capabilities.blockstorage, true)
+  }
 
   critical_addons_tolerations = {
     tolerations = [
