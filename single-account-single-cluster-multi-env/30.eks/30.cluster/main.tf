@@ -45,7 +45,7 @@ module "eks" {
   ))
 
   enable_cluster_creator_admin_permissions = "true"
-  authentication_mode                      = "API_AND_CONFIG_MAP"
+  authentication_mode                      = try(var.cluster_config.authentication_mode, "API_AND_CONFIG_MAP")
 
   bootstrap_self_managed_addons = "false"
 
@@ -220,6 +220,7 @@ resource "null_resource" "update-kubeconfig" {
 # Add the karpernter discovery tag only to the cluster primary security group
 # by default if use the eks module tags, it will tag all resources with this tag, which is not needed.
 resource "aws_ec2_tag" "cluster_primary_security_group" {
+  count       = local.capabilities.autoscaling ? 1 : 0
   resource_id = module.eks.cluster_primary_security_group_id
   key         = "karpenter.sh/discovery"
   value       = local.cluster_name
