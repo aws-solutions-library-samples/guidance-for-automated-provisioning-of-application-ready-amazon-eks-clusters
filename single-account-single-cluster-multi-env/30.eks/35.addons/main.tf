@@ -2,10 +2,6 @@ data "aws_region" "current" {}
 
 data "aws_caller_identity" "current" {}
 
-locals {
-  region = data.aws_region.current.id
-}
-
 module "eks_blueprints_addons" {
   source  = "aws-ia/eks-blueprints-addons/aws"
   version = "~> 1.16.2"
