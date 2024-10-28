@@ -33,9 +33,8 @@ module "eks" {
   cluster_enabled_log_types = ["audit", "api", "authenticator", "controllerManager", "scheduler"]
 
   vpc_id                   = data.terraform_remote_state.vpc.outputs.vpc_id
-  subnet_ids               = data.terraform_remote_state.vpc.outputs.private_subnet_ids
-  control_plane_subnet_ids = data.terraform_remote_state.vpc.outputs.private_subnet_ids
-  # control_plane_subnet_ids = data.terraform_remote_state.vpc.outputs.intra_subnet_ids
+  subnet_ids               = local.private_subnet_ids
+  control_plane_subnet_ids = local.control_plane_subnet_ids
 
   # Combine root account, current user/role and additinoal roles to be able to access the cluster KMS key - required for terraform updates
   kms_key_administrators = distinct(concat([

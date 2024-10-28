@@ -4,6 +4,9 @@ locals {
   tfstate_region  = try(var.tfstate_region, local.region)
   cluster_version = var.cluster_config.kubernetes_version
 
+  private_subnet_ids       = data.terraform_remote_state.vpc.outputs.private_subnet_ids
+  control_plane_subnet_ids = try(var.cluster_config.use_intra_subnets, true) ? data.terraform_remote_state.vpc.outputs.intra_subnet_ids : local.private_subnet_ids
+
   capabilities = {
     networking   = try(var.cluster_config.capabilities.networking, true)
     coredns      = try(var.cluster_config.capabilities.coredns, true)

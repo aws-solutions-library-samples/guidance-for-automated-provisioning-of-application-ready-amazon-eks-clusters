@@ -29,3 +29,8 @@ output "oidc_provider_arn" {
   description = "The OIDC Provider ARN"
   value       = module.eks.oidc_provider_arn
 }
+
+output "control_plane_subnet_ids" {
+  description = "The Control Plane Subnet IDs"
+  value       = local.control_plane_subnet_ids
+}
