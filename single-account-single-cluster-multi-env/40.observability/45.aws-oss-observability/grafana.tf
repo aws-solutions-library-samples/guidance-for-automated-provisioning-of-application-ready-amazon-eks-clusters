@@ -1,5 +1,15 @@
 # Data block to fetch the SSO admin instance. Once you enabled SSO admin from console, you need data block to fetch this in your code.
-data "aws_ssoadmin_instances" "current" {}
+provider "aws" {
+  region = local.sso_region
+  alias  = "sso"
+  default_tags {
+    tags = local.tags
+  }
+}
+
+data "aws_ssoadmin_instances" "current" {
+  provider = aws.sso
+}
 
 module "managed_grafana" {
   count   = var.observability_configuration.aws_oss_tooling ? 1 : 0
@@ -53,6 +63,7 @@ module "managed_grafana" {
 # ############################## Users,Group,Group's Membership #########################################
 
 resource "aws_identitystore_user" "user" {
+  provider          = aws.sso
   count             = var.observability_configuration.aws_oss_tooling ? 1 : 0
   identity_store_id = tolist(data.aws_ssoadmin_instances.current.identity_store_ids)[0]
 
@@ -71,13 +82,15 @@ resource "aws_identitystore_user" "user" {
 }
 
 resource "aws_identitystore_group" "group" {
+  provider          = aws.sso
   count             = var.observability_configuration.aws_oss_tooling ? 1 : 0
   identity_store_id = tolist(data.aws_ssoadmin_instances.current.identity_store_ids)[0]
-  display_name      = "grafana-admins"
-  description       = "Grafana Administrators"
+  display_name      = "grafana-admins-${terraform.workspace}"
+  description       = "Grafana Administrators for ${terraform.workspace} env"
 }
 
 resource "aws_identitystore_group_membership" "group_membership" {
+  provider          = aws.sso
   count             = var.observability_configuration.aws_oss_tooling ? 1 : 0
   identity_store_id = tolist(data.aws_ssoadmin_instances.current.identity_store_ids)[0]
   group_id          = aws_identitystore_group.group[count.index].group_id

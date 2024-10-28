@@ -3,6 +3,7 @@ locals {
   name = "${var.shared_config.resources_prefix}-${terraform.workspace}"
 
   region         = data.aws_region.current.name
+  sso_region     = try(var.observability_configuration.aws_oss_tooling_config.sso_region, local.region)
   tfstate_region = try(var.tfstate_region, local.region)
 
   eks_cluster_endpoint = data.aws_eks_cluster.this.endpoint

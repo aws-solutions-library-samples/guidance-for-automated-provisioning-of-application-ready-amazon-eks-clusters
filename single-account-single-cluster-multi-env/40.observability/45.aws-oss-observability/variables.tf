@@ -19,11 +19,8 @@ variable "observability_configuration" {
       enable_self_managed_collectors = false
       prometheus_name                = "prom"
       enable_grafana_operator        = true
-
     }
-
   }
-  # nullable = false
 }
 
 variable "go_config" {
