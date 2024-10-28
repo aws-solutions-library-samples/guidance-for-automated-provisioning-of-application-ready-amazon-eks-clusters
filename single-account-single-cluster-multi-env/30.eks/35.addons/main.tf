@@ -57,7 +57,7 @@ module "eks_blueprints_addons" {
   # FluentBit 
   enable_aws_for_fluentbit = try(
     var.observability_configuration.aws_oss_tooling
-    && !var.observability_configuration.aws_oss_tooling.enable_adot_collector
+    && !var.observability_configuration.aws_oss_tooling_config.enable_adot_collector
   , false)
   aws_for_fluentbit = {
     values = [
