@@ -177,8 +177,11 @@ module "endpoints" {
 #--------------------------------------------------------------
 # Adding guidance solution ID via AWS CloudFormation resource
 #--------------------------------------------------------------
+resource "random_bytes" "this" {
+  length = 2
+}
 resource "aws_cloudformation_stack" "guidance_deployment_metrics" {
-  name          = "tracking-stack"
+  name          = "tracking-stack-${random_bytes.this.hex}"
   on_failure    = "DO_NOTHING"
   template_body = <<STACK
     {
