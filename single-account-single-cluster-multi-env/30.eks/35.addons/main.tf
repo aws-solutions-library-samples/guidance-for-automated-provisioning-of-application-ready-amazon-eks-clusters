@@ -14,7 +14,7 @@ module "eks_blueprints_addons" {
   create_kubernetes_resources = true
 
   # common addons deployed with EKS Blueprints Addons
-  enable_aws_load_balancer_controller = true
+  enable_aws_load_balancer_controller = try(var.cluster_config.capabilities.loadbalancing, true)
   aws_load_balancer_controller = {
     values = [yamlencode(local.critical_addons_tolerations)]
   }
@@ -71,7 +71,7 @@ module "eks_blueprints_addons" {
   }
 
   # GitOps 
-  enable_argocd = true
+  enable_argocd = try(var.cluster_config.capabilities.gitops, true)
   argocd = {
     enabled = true
     # The following settings are required to be set to true to ensure the
@@ -86,6 +86,7 @@ module "eks_blueprints_addons" {
 
 
 resource "null_resource" "clean_up_argocd_resources" {
+  count = try(var.cluster_config.capabilities.gitops, true) ? 1 : 0
   triggers = {
     argocd           = module.eks_blueprints_addons.argocd.name
     eks_cluster_name = data.terraform_remote_state.eks.outputs.cluster_name

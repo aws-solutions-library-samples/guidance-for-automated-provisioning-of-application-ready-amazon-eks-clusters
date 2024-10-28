@@ -10,6 +10,12 @@ variable "tags" {
   default = {}
 }
 
+variable "cluster_config" {
+  description = "cluster configurations such as version, public/private API endpoint, and more"
+  type        = any
+  default     = {}
+}
+
 variable "observability_configuration" {
   description = "observability configuration variable"
   type = object({
