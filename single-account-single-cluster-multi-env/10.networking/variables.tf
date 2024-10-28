@@ -39,7 +39,7 @@ variable "tags" {
 
 variable "cluster_config" {
   description = "cluster configurations such as version, public/private API endpoint, and more"
-  type        = map(string)
+  type        = any
   default     = {}
 }
 
