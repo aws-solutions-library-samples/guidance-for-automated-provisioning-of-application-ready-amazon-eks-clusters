@@ -48,6 +48,8 @@ module "eks" {
 
   bootstrap_self_managed_addons = "false"
 
+  # We're using EKS module to only provision EKS managed addons
+  # The reason for that is to use the `before_compute` parameter which allows for the addon to be deployed before a compute is available for it to run
   cluster_addons = merge(
     local.capabilities.networking ? {
       vpc-cni = {
