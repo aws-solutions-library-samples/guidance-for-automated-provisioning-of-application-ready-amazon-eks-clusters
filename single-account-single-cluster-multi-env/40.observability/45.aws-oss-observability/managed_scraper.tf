@@ -46,7 +46,7 @@ resource "aws_prometheus_scraper" "amp_scraper" {
   source {
     eks {
       cluster_arn = data.aws_eks_cluster.this.arn
-      subnet_ids  = data.terraform_remote_state.vpc.outputs.intra_subnet_ids
+      subnet_ids  = data.terraform_remote_state.eks.outputs.control_plane_subnet_ids
     }
   }
 

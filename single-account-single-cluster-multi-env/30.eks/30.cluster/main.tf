@@ -27,9 +27,14 @@ module "eks" {
   cluster_version                = local.cluster_version
   cluster_endpoint_public_access = try(!var.cluster_config.private_eks_cluster, false)
 
+  create_iam_role = try(var.cluster_config.create_iam_role, true)
+  iam_role_arn    = try(var.cluster_config.cluster_iam_role_arn, null)
+
+  cluster_enabled_log_types = ["audit", "api", "authenticator", "controllerManager", "scheduler"]
+
   vpc_id                   = data.terraform_remote_state.vpc.outputs.vpc_id
-  subnet_ids               = data.terraform_remote_state.vpc.outputs.private_subnet_ids
-  control_plane_subnet_ids = data.terraform_remote_state.vpc.outputs.intra_subnet_ids
+  subnet_ids               = local.private_subnet_ids
+  control_plane_subnet_ids = local.control_plane_subnet_ids
 
   # Combine root account, current user/role and additinoal roles to be able to access the cluster KMS key - required for terraform updates
   kms_key_administrators = distinct(concat([
@@ -39,7 +44,64 @@ module "eks" {
   ))
 
   enable_cluster_creator_admin_permissions = "true"
-  authentication_mode                      = "API_AND_CONFIG_MAP"
+  authentication_mode                      = try(var.cluster_config.authentication_mode, "API_AND_CONFIG_MAP")
+
+  bootstrap_self_managed_addons = "false"
+
+  # We're using EKS module to only provision EKS managed addons
+  # The reason for that is to use the `before_compute` parameter which allows for the addon to be deployed before a compute is available for it to run
+  cluster_addons = merge(
+    local.capabilities.networking ? {
+      vpc-cni = {
+        # Specify the VPC CNI addon should be deployed before compute to ensure
+        # the addon is configured before data plane compute resources are created
+        before_compute = true
+        most_recent    = true # To ensure access to the latest settings provided
+        preserve       = false
+        configuration_values = jsonencode({
+          env = {
+            ENABLE_PREFIX_DELEGATION = "false"
+            WARM_ENI_TARGET          = "0"
+            MINIMUM_IP_TARGET        = "10"
+            WARM_IP_TARGET           = "5"
+          }
+        })
+      }
+    } : {},
+    local.capabilities.networking ? {
+      kube-proxy = {
+        before_compute = true
+        most_recent    = true
+        preserve       = false
+      }
+    } : {},
+    local.capabilities.coredns ? {
+      coredns = {
+        resolve_conflicts_on_create = "OVERWRITE"
+        resolve_conflicts_on_update = "PRESERVE"
+        preserve                    = false
+        most_recent                 = true
+        configuration_values = jsonencode(
+          {
+            replicaCount : 2,
+            tolerations : [local.critical_addons_tolerations.tolerations[0]]
+          }
+        )
+      }
+    } : {},
+    local.capabilities.identity ? {
+      eks-pod-identity-agent = {
+        most_recent = true
+        preserve    = false
+      }
+    } : {},
+    local.capabilities.blockstorage ? {
+      aws-ebs-csi-driver = {
+        service_account_role_arn = module.ebs_csi_driver_irsa[0].iam_role_arn
+        preserve                 = false
+      }
+    } : {}
+  )
 
   access_entries = {
     EKSClusterAdmin = {
@@ -113,7 +175,7 @@ module "eks" {
   }
   eks_managed_node_groups = {
     "${local.cluster_name}-criticaladdons" = {
-
+      create                   = try(var.cluster_config.create_mng_system, true)
       iam_role_use_name_prefix = false
       subnet_ids               = data.terraform_remote_state.vpc.outputs.private_subnet_ids
       max_size                 = 8
@@ -127,10 +189,8 @@ module "eks" {
         }
       }
     }
-
   }
   tags = local.tags
-
 }
 
 
@@ -161,6 +221,7 @@ resource "null_resource" "update-kubeconfig" {
 # Add the karpernter discovery tag only to the cluster primary security group
 # by default if use the eks module tags, it will tag all resources with this tag, which is not needed.
 resource "aws_ec2_tag" "cluster_primary_security_group" {
+  count       = local.capabilities.autoscaling ? 1 : 0
   resource_id = module.eks.cluster_primary_security_group_id
   key         = "karpenter.sh/discovery"
   value       = local.cluster_name
@@ -172,6 +233,7 @@ resource "aws_ec2_tag" "cluster_primary_security_group" {
 # Cluster Access Management - permissions of Karpenter node Role
 ################################################################################
 resource "aws_eks_access_entry" "karpenter_node" {
+  count         = local.capabilities.autoscaling ? 1 : 0
   cluster_name  = module.eks.cluster_name
   principal_arn = module.eks_blueprints_addons.karpenter.node_iam_role_arn
 
@@ -185,6 +247,7 @@ resource "aws_eks_access_entry" "karpenter_node" {
 # EBS CSI Driver
 ################################################################################
 module "ebs_csi_driver_irsa" {
+  count   = local.capabilities.blockstorage ? 1 : 0
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
   version = "~> 5.43"
 
@@ -219,48 +282,9 @@ module "eks_blueprints_addons" {
   # We want to wait for the Fargate profiles to be deployed first
   create_delay_dependencies = [for prof in module.eks.fargate_profiles : prof.fargate_profile_arn]
 
-  eks_addons = {
-    vpc-cni = {
-      # Specify the VPC CNI addon should be deployed before compute to ensure
-      # the addon is configured before data plane compute resources are created
-      before_compute = true
-      most_recent    = true # To ensure access to the latest settings provided
-      configuration_values = jsonencode({
-        env = {
-          ENABLE_PREFIX_DELEGATION = "false"
-          WARM_ENI_TARGET          = "0"
-          MINIMUM_IP_TARGET        = "10"
-          WARM_IP_TARGET           = "5"
-        }
-      })
-    }
-    coredns = {
-      resolve_conflicts_on_create = "OVERWRITE"
-      resolve_conflicts_on_update = "PRESERVE"
-      preserve                    = true
-      most_recent                 = true
-      configuration_values = jsonencode(
-        {
-          replicaCount : 2,
-          tolerations : [local.critical_addons_tolerations.tolerations[0]]
-        }
-      )
-    }
-    kube-proxy = {
-      most_recent = true
-    }
-    aws-ebs-csi-driver = {
-      service_account_role_arn = module.ebs_csi_driver_irsa.iam_role_arn
-    }
-    eks-pod-identity-agent = {
-      most_recent = true
-    }
-
-  }
-
   # by default, Karpenter helm chart is set to not schedule Karpenter pods, on nodes it creates,
   #  so no additional nodeSelector is needed here to ensure it'll run on the above node-groups
-  enable_karpenter = true
+  enable_karpenter = local.capabilities.autoscaling
   karpenter = {
     repository_username = data.aws_ecrpublic_authorization_token.token.user_name
     repository_password = data.aws_ecrpublic_authorization_token.token.password
@@ -278,6 +302,7 @@ module "eks_blueprints_addons" {
 }
 
 data "kubectl_path_documents" "karpenter_manifests" {
+  count   = local.capabilities.autoscaling ? 1 : 0
   pattern = "${path.module}/karpenter/*.yaml"
   vars = {
     role         = module.eks_blueprints_addons.karpenter.node_iam_role_name
@@ -287,8 +312,8 @@ data "kubectl_path_documents" "karpenter_manifests" {
 }
 
 resource "kubectl_manifest" "karpenter_manifests" {
-  for_each   = toset(data.kubectl_path_documents.karpenter_manifests.documents)
-  yaml_body  = each.value
+  count      = local.capabilities.autoscaling ? length(data.kubectl_path_documents.karpenter_manifests[0].documents) : 0
+  yaml_body  = element(data.kubectl_path_documents.karpenter_manifests[0].documents, count.index)
   depends_on = [module.eks_blueprints_addons]
 }
 
@@ -296,6 +321,7 @@ resource "kubectl_manifest" "karpenter_manifests" {
 # Storage Classes
 ################################################################################
 resource "kubernetes_annotations" "gp2" {
+  count       = local.capabilities.blockstorage ? 1 : 0
   api_version = "storage.k8s.io/v1"
   kind        = "StorageClass"
   force       = "true"
@@ -306,11 +332,12 @@ resource "kubernetes_annotations" "gp2" {
     "storageclass.kubernetes.io/is-default-class" = "false"
   }
   depends_on = [
-    module.eks_blueprints_addons
+    module.eks
   ]
 }
 
 resource "kubernetes_storage_class_v1" "gp3" {
+  count = local.capabilities.blockstorage ? 1 : 0
   metadata {
     name = "gp3"
     annotations = {
@@ -327,6 +354,6 @@ resource "kubernetes_storage_class_v1" "gp3" {
     type      = "gp3"
   }
   depends_on = [
-    module.eks_blueprints_addons
+    module.eks
   ]
 }

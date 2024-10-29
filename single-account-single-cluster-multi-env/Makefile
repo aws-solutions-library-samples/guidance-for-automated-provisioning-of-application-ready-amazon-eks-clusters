@@ -6,8 +6,12 @@ ENVIRONMENT ?= dev
 AWS_REGION ?= $(shell aws configure get region)
 AWS_ACCOUNT_ID ?= $(shell aws sts get-caller-identity --output json | jq -r '.Account')
 TFSTATE_S3_BUCKET ?= "tfstate-$(AWS_ACCOUNT_ID)"
+TFSTATE_REGION ?= $(AWS_REGION)
 TFSTATE_DDB_TABLE ?= "tfstate-lock"
 VAR_FILE := $(CURDIR)/00.global/vars/$(ENVIRONMENT).tfvars
+
+TF_VAR_tfstate_region := $(TFSTATE_REGION)
+export TF_VAR_tfstate_region
 
 MODULES = $(shell find . -type f -name "backend.tf" -exec dirname {} \; | sort -u )
 
@@ -31,6 +35,10 @@ check-env:
 		echo "AWS_REGION was not set."; \
 		exit 1; \
 	 fi
+	@if [ -z $(TFSTATE_REGION) ]; then \
+		echo "TFSTATE_REGION was not set."; \
+		exit 1; \
+	 fi
 	@if [ ! -f $(VAR_FILE) ]; then \
   		echo "VAR_FILE: $(VAR_FILE) does not exist."; \
   	fi
@@ -40,22 +48,22 @@ check-env:
 bootstrap: check-env
 	@echo "Bootstrapping Terraform: S3 Bucket: $(TFSTATE_S3_BUCKET), DynamoDB Table: $(TFSTATE_DDB_TABLE)"
 	@echo "Checking if S3 Bucket $(TFSTATE_S3_BUCKET) exists"
-	@if ! aws s3api head-bucket --region $(AWS_REGION) --bucket $(TFSTATE_S3_BUCKET) > /dev/null 2>&1; then \
+	@if ! aws s3api head-bucket --region $(TFSTATE_REGION) --bucket $(TFSTATE_S3_BUCKET) > /dev/null 2>&1; then \
 		echo "S3 Bucket $(TFSTATE_S3_BUCKET) does not exists, creating..."; \
-		aws s3 mb --region $(AWS_REGION) s3://$(TFSTATE_S3_BUCKET) > /dev/null 2>&1; \
-		aws s3api put-bucket-ownership-controls --region $(AWS_REGION) --bucket $(TFSTATE_S3_BUCKET) --ownership-controls Rules="[{ObjectOwnership=BucketOwnerPreferred}]" > /dev/null 2>&1; \
-		aws s3api put-bucket-acl --region $(AWS_REGION) --bucket $(TFSTATE_S3_BUCKET) --acl private > /dev/null 2>&1; \
+		aws s3 mb --region $(TFSTATE_REGION) s3://$(TFSTATE_S3_BUCKET) > /dev/null 2>&1; \
+		aws s3api put-bucket-ownership-controls --region $(TFSTATE_REGION) --bucket $(TFSTATE_S3_BUCKET) --ownership-controls Rules="[{ObjectOwnership=BucketOwnerPreferred}]" > /dev/null 2>&1; \
+		aws s3api put-bucket-acl --region $(TFSTATE_REGION) --bucket $(TFSTATE_S3_BUCKET) --acl private > /dev/null 2>&1; \
 		aws s3api put-public-access-block --bucket $(TFSTATE_S3_BUCKET) --public-access-block-configuration "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true" > /dev/null 2>&1; \
-		aws s3api put-bucket-versioning --region $(AWS_REGION) --bucket $(TFSTATE_S3_BUCKET) --versioning-configuration Status=Enabled > /dev/null 2>&1; \
+		aws s3api put-bucket-versioning --region $(TFSTATE_REGION) --bucket $(TFSTATE_S3_BUCKET) --versioning-configuration Status=Enabled > /dev/null 2>&1; \
 		echo "Created S3 Bucket $(TFSTATE_S3_BUCKET)."; \
 	 else \
 		echo "S3 Bucket $(TFSTATE_S3_BUCKET) exists."; \
 	 fi
 	@echo "Checking if DynamoDB table $(TFSTATE_DDB_TABLE) exists"
-	@if ! aws dynamodb describe-table --region $(AWS_REGION) --table-name $(TFSTATE_DDB_TABLE) > /dev/null 2>&1 ; then \
+	@if ! aws dynamodb describe-table --region $(TFSTATE_REGION) --table-name $(TFSTATE_DDB_TABLE) > /dev/null 2>&1 ; then \
 		echo "DynamoDB table $(TFSTATE_DDB_TABLE) does not exists, creating..."; \
 		aws dynamodb create-table \
-          	--region $(AWS_REGION) \
+          	--region $(TFSTATE_REGION) \
           	--table-name $(TFSTATE_DDB_TABLE) \
           	--attribute-definitions AttributeName=LockID,AttributeType=S \
           	--key-schema AttributeName=LockID,KeyType=HASH \
@@ -98,7 +106,7 @@ init: check-env
 		-input=false \
 		-upgrade \
 		-backend=true \
-		-backend-config="region=$(AWS_REGION)" \
+		-backend-config="region=$(TFSTATE_REGION)" \
 		-backend-config="bucket=$(TFSTATE_S3_BUCKET)" \
 		-backend-config="dynamodb_table=$(TFSTATE_DDB_TABLE)" \
 		2>&1 | tee -a tf-logs/$(notdir $(MODULE))-init.log

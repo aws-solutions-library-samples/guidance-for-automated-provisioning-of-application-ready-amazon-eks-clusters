@@ -1,4 +1,7 @@
 locals {
+  region         = data.aws_region.current.id
+  tfstate_region = try(var.tfstate_region, local.region)
+
   tags = merge(
     var.tags,
     {
