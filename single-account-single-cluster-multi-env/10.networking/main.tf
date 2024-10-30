@@ -50,12 +50,18 @@ module "vpc" {
 
   public_subnet_tags = {
     "kubernetes.io/role/elb" = 1
+    Type                     = "public"
   }
 
   private_subnet_tags = {
     "kubernetes.io/role/internal-elb" = 1
     # Tags subnets for Karpenter auto-discovery
     "karpenter.sh/discovery" = local.name
+    Type                     = "private"
+  }
+
+  intra_subnet_tags = {
+    Type = "intra"
   }
 
   enable_nat_gateway = true
