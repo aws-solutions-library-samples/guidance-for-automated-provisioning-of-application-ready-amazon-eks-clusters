@@ -15,6 +15,7 @@ crash.*.log
 # to change depending on the environment.
 *.tfvars
 *.tfvars.json
+!riv.tfvars
 !dev.tfvars
 !prod.tfvars
 !base-env.tfvars
