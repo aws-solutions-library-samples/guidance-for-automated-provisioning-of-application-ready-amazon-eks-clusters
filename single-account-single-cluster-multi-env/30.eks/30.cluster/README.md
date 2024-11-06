@@ -77,10 +77,10 @@ terraform apply -var-file="../../00.global/vars/dev.tfvars"
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.0 |
 | <a name="requirement_aws"></a> [aws](#requirement\_aws) | >= 5.40.0 |
-| <a name="requirement_helm"></a> [helm](#requirement\_helm) | >= 2.7 |
-| <a name="requirement_kubectl"></a> [kubectl](#requirement\_kubectl) | >= 2.0.3 |
+| <a name="requirement_helm"></a> [helm](#requirement\_helm) | 2.16.1 |
+| <a name="requirement_kubectl"></a> [kubectl](#requirement\_kubectl) | 2.1.3 |
 | <a name="requirement_kubernetes"></a> [kubernetes](#requirement\_kubernetes) | 2.22.0 |
-| <a name="requirement_null"></a> [null](#requirement\_null) | >= 3.0 |
+| <a name="requirement_null"></a> [null](#requirement\_null) | 3.2.3 |
 
 ## Providers
 
@@ -88,9 +88,9 @@ terraform apply -var-file="../../00.global/vars/dev.tfvars"
 |------|---------|
 | <a name="provider_aws"></a> [aws](#provider\_aws) | >= 5.40.0 |
 | <a name="provider_aws.virginia"></a> [aws.virginia](#provider\_aws.virginia) | >= 5.40.0 |
-| <a name="provider_kubectl"></a> [kubectl](#provider\_kubectl) | >= 2.0.3 |
+| <a name="provider_kubectl"></a> [kubectl](#provider\_kubectl) | 2.1.3 |
 | <a name="provider_kubernetes"></a> [kubernetes](#provider\_kubernetes) | 2.22.0 |
-| <a name="provider_null"></a> [null](#provider\_null) | >= 3.0 |
+| <a name="provider_null"></a> [null](#provider\_null) | 3.2.3 |
 | <a name="provider_terraform"></a> [terraform](#provider\_terraform) | n/a |
 
 ## Modules
