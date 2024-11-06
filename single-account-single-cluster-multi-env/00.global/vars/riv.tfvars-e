@@ -10,13 +10,13 @@ shared_config = {
 }
 
 cluster_config = {
-  kubernetes_version   = "1.29"
-  private_eks_cluster  = false
-  create_iam_role      = false
-  private_eks_cluster  = false
-  cluster_iam_role_arn = "{{CLUSTER_IAM_ROLE_ARN}}"
-  use_intra_subnets    = false
-  create_mng_system    = false
+  kubernetes_version  = "1.29"
+  private_eks_cluster = false
+  create_iam_role     = false
+  private_eks_cluster = false
+  cluster_iam_role_arn = {{CLUSTER_IAM_ROLE_ARN}}
+  use_intra_subnets = false
+  create_mng_system = false
   capabilities = {
     networking    = false
     coredns       = false
