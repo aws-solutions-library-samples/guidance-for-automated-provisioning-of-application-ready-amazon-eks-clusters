@@ -6,7 +6,7 @@ tags = {
 }
 
 shared_config = {
-  resources_prefix = "tach" // WRE = Workload Ready EKS 
+  resources_prefix = "wre" // WRE = Workload Ready EKS 
 }
 
 cluster_config = {
