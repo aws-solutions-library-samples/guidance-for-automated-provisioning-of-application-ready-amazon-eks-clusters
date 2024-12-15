@@ -28,7 +28,7 @@ locals {
     var.tags,
     {
       "Environment" : terraform.workspace
-      "provisioned-by" : "aws-samples/terraform-workloads-ready-eks-accelerator"
+      "provisioned-by" : "aws-solutions-library-samples/guidance-for-automated-provisioning-of-application-ready-amazon-eks-clusters"
     }
   )
 }

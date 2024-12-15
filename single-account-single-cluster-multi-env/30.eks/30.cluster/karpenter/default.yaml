@@ -23,7 +23,7 @@ spec:
           values: ["c", "m", "r"]
         - key: karpenter.k8s.aws/instance-generation
           operator: Gt
-          values: ["2"]
+          values: ["4"]
         - key: karpenter.k8s.aws/instance-size
           operator: NotIn
           values: [nano, micro, small, medium]
@@ -49,4 +49,4 @@ spec:
   tags:
     karpenter.sh/discovery: ${cluster_name}
     Environment: ${environment}
-    provisioned-by: "aws-samples/terraform-workloads-ready-eks-accelerator"
+    provisioned-by: "aws-solutions-library-samples/guidance-for-automated-provisioning-of-application-ready-amazon-eks-clusters"
