@@ -1,3 +1,5 @@
+# Example tfvars for deploying a Workload Ready EKS Cluster with EKS Auto Mode enabled
+
 vpc_cidr = "10.2.0.0/16"
 
 # custom tags to apply to all resources
@@ -10,7 +12,7 @@ shared_config = {
 
 cluster_config = {
   kubernetes_version  = "1.29"
-  eks_auto_mode       = true
+  eks_auto_mode       = true // When set to true, all other self-managed addons are set to false
   private_eks_cluster = false
   capabilities = {
     gitops = false
