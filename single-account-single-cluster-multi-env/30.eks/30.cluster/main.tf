@@ -1,5 +1,3 @@
-
-
 data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
 # data "aws_availability_zones" "available" {}
@@ -10,9 +8,6 @@ data "aws_iam_session_context" "current" {
   # Ref https://github.com/hashicorp/terraform-provider-aws/issues/28381
   arn = data.aws_caller_identity.current.arn
 }
-data "aws_ecrpublic_authorization_token" "token" {
-  provider = aws.virginia
-}
 
 
 ################################################################################
@@ -21,14 +16,17 @@ data "aws_ecrpublic_authorization_token" "token" {
 #tfsec:ignore:aws-eks-enable-control-plane-logging
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "20.24.0"
+  version = "~> 20.31.3"
 
   cluster_name                   = local.cluster_name
   cluster_version                = local.cluster_version
   cluster_endpoint_public_access = try(!var.cluster_config.private_eks_cluster, false)
 
-  create_iam_role = try(var.cluster_config.create_iam_role, true)
-  iam_role_arn    = try(var.cluster_config.cluster_iam_role_arn, null)
+  create_iam_role          = try(var.cluster_config.create_iam_role, true)
+  iam_role_arn             = try(var.cluster_config.cluster_iam_role_arn, null)
+  iam_role_use_name_prefix = false
+
+  node_iam_role_use_name_prefix = false
 
   cluster_enabled_log_types = ["audit", "api", "authenticator", "controllerManager", "scheduler"]
 
@@ -44,9 +42,11 @@ module "eks" {
   ))
 
   enable_cluster_creator_admin_permissions = "true"
-  authentication_mode                      = try(var.cluster_config.authentication_mode, "API_AND_CONFIG_MAP")
+  authentication_mode                      = try(var.cluster_config.authentication_mode, "API")
 
   bootstrap_self_managed_addons = "false"
+
+  cluster_compute_config = local.eks_auto_mode ? { enabled = local.eks_auto_mode } : {}
 
   # We're using EKS module to only provision EKS managed addons
   # The reason for that is to use the `before_compute` parameter which allows for the addon to be deployed before a compute is available for it to run
@@ -68,7 +68,7 @@ module "eks" {
         })
       }
     } : {},
-    local.capabilities.networking ? {
+    local.capabilities.kube_proxy ? {
       kube-proxy = {
         before_compute = true
         most_recent    = true
@@ -164,8 +164,7 @@ module "eks" {
   create_cluster_security_group = false
   create_node_security_group    = false
 
-  # managed node group for base EKS addons such as Karpenter 
-
+  # managed node group for base EKS addons such as Karpenter
   eks_managed_node_group_defaults = {
     instance_types = ["m6g.large"]
     ami_type       = "AL2_ARM_64"
@@ -175,7 +174,7 @@ module "eks" {
   }
   eks_managed_node_groups = {
     "${local.cluster_name}-criticaladdons" = {
-      create                   = try(var.cluster_config.create_mng_system, true)
+      create                   = local.create_mng_system
       iam_role_use_name_prefix = false
       subnet_ids               = data.terraform_remote_state.vpc.outputs.private_subnet_ids
       max_size                 = 8
@@ -192,7 +191,6 @@ module "eks" {
   }
   tags = local.tags
 }
-
 
 resource "null_resource" "update-kubeconfig" {
   depends_on = [module.eks]
@@ -218,31 +216,6 @@ resource "null_resource" "update-kubeconfig" {
   }
 }
 
-# Add the karpernter discovery tag only to the cluster primary security group
-# by default if use the eks module tags, it will tag all resources with this tag, which is not needed.
-resource "aws_ec2_tag" "cluster_primary_security_group" {
-  count       = local.capabilities.autoscaling ? 1 : 0
-  resource_id = module.eks.cluster_primary_security_group_id
-  key         = "karpenter.sh/discovery"
-  value       = local.cluster_name
-}
-
-
-
-################################################################################
-# Cluster Access Management - permissions of Karpenter node Role
-################################################################################
-resource "aws_eks_access_entry" "karpenter_node" {
-  count         = local.capabilities.autoscaling ? 1 : 0
-  cluster_name  = module.eks.cluster_name
-  principal_arn = module.eks_blueprints_addons.karpenter.node_iam_role_arn
-
-  # From https://docs.aws.amazon.com/eks/latest/APIReference/API_CreateAccessEntry.html :
-  # If you set the value to EC2_LINUX or EC2_WINDOWS, you can't specify values for kubernetesGroups, or associate an AccessPolicy to the access entry.
-  type = "EC2_LINUX"
-}
-
-
 ################################################################################
 # EBS CSI Driver
 ################################################################################
@@ -265,63 +238,66 @@ module "ebs_csi_driver_irsa" {
   }
 }
 
-
 ################################################################################
-# EKS Blueprints Addons - common/base addons for every cluster
+# EKS Auto Mode Node role access entry
 ################################################################################
-
-module "eks_blueprints_addons" {
-  source  = "aws-ia/eks-blueprints-addons/aws"
-  version = "~> 1.16.2"
-
-  cluster_name      = module.eks.cluster_name
-  cluster_endpoint  = module.eks.cluster_endpoint
-  cluster_version   = module.eks.cluster_version
-  oidc_provider_arn = module.eks.oidc_provider_arn
-
-  # We want to wait for the Fargate profiles to be deployed first
-  create_delay_dependencies = [for prof in module.eks.fargate_profiles : prof.fargate_profile_arn]
-
-  # by default, Karpenter helm chart is set to not schedule Karpenter pods, on nodes it creates,
-  #  so no additional nodeSelector is needed here to ensure it'll run on the above node-groups
-  enable_karpenter = local.capabilities.autoscaling
-  karpenter = {
-    repository_username = data.aws_ecrpublic_authorization_token.token.user_name
-    repository_password = data.aws_ecrpublic_authorization_token.token.password
-    namespace           = "kube-system"
-    values              = [yamlencode(local.critical_addons_tolerations)]
-  }
-  karpenter_node = {
-    # Use static name so that it matches what is defined in `karpenter.yaml` example manifest
-    iam_role_use_name_prefix = false
-  }
-
-  tags = local.tags
-
-  depends_on = [module.eks]
+resource "aws_eks_access_entry" "automode_node" {
+  count         = local.eks_auto_mode ? 1 : 0
+  cluster_name  = module.eks.cluster_name
+  principal_arn = module.eks.node_iam_role_arn
+  type          = "EC2"
 }
 
-data "kubectl_path_documents" "karpenter_manifests" {
-  count   = local.capabilities.autoscaling ? 1 : 0
-  pattern = "${path.module}/karpenter/*.yaml"
+resource "aws_eks_access_policy_association" "automode_node" {
+  count        = local.eks_auto_mode ? 1 : 0
+  cluster_name = module.eks.cluster_name
+  access_scope {
+    type = "cluster"
+  }
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSAutoNodePolicy"
+  principal_arn = module.eks.node_iam_role_arn
+}
+
+################################################################################
+# EKS Auto Mode default NodePools & NodeClass
+################################################################################
+data "kubectl_path_documents" "automode_manifests" {
+  count   = local.eks_auto_mode ? 1 : 0
+  pattern = "${path.module}/auto-mode/*.yaml"
   vars = {
-    role         = module.eks_blueprints_addons.karpenter.node_iam_role_name
-    cluster_name = local.cluster_name
-    environment  = terraform.workspace
+    role                      = module.eks.node_iam_role_name
+    cluster_name              = local.cluster_name
+    cluster_security_group_id = module.eks.cluster_primary_security_group_id
+    environment               = terraform.workspace
+  }
+  depends_on = [
+    module.eks
+  ]
+}
+
+# workaround terraform issue with attributes that cannot be determined ahead because of module dependencies
+# https://github.com/gavinbunney/terraform-provider-kubectl/issues/58
+data "kubectl_path_documents" "automode_manifests_dummy" {
+  count   = local.eks_auto_mode ? 1 : 0
+  pattern = "${path.module}/auto-mode/*.yaml"
+  vars = {
+    role                      = ""
+    cluster_name              = ""
+    cluster_security_group_id = ""
+    environment               = terraform.workspace
   }
 }
 
-resource "kubectl_manifest" "karpenter_manifests" {
-  count      = local.capabilities.autoscaling ? length(data.kubectl_path_documents.karpenter_manifests[0].documents) : 0
-  yaml_body  = element(data.kubectl_path_documents.karpenter_manifests[0].documents, count.index)
-  depends_on = [module.eks_blueprints_addons]
+resource "kubectl_manifest" "automode_manifests" {
+  count     = local.eks_auto_mode ? length(data.kubectl_path_documents.automode_manifests_dummy[0].documents) : 0
+  yaml_body = element(data.kubectl_path_documents.automode_manifests[0].documents, count.index)
 }
 
 ################################################################################
 # Storage Classes
 ################################################################################
 resource "kubernetes_annotations" "gp2" {
-  count       = local.capabilities.blockstorage ? 1 : 0
+  count       = local.capabilities.blockstorage || local.eks_auto_mode ? 1 : 0
   api_version = "storage.k8s.io/v1"
   kind        = "StorageClass"
   force       = "true"
@@ -355,5 +331,66 @@ resource "kubernetes_storage_class_v1" "gp3" {
   }
   depends_on = [
     module.eks
+  ]
+}
+
+################################################################################
+# EKS Auto Mode Storage Class
+################################################################################
+resource "kubernetes_storage_class_v1" "automode" {
+  count = local.eks_auto_mode ? 1 : 0
+  metadata {
+    name = "auto-ebs-sc"
+    annotations = {
+      "storageclass.kubernetes.io/is-default-class" = "true"
+    }
+  }
+  storage_provisioner = "ebs.csi.eks.amazonaws.com"
+  volume_binding_mode = "WaitForFirstConsumer"
+  parameters = {
+    encrypted = true
+    type      = "gp3"
+  }
+  depends_on = [
+    module.eks
+  ]
+}
+
+################################################################################
+# EKS Auto Mode Ingress
+################################################################################
+resource "kubectl_manifest" "automode_ingressclass_params" {
+  count     = local.eks_auto_mode ? 1 : 0
+  yaml_body = <<YAML
+apiVersion: eks.amazonaws.com/v1
+kind: IngressClassParams
+metadata:
+  name: auto-alb
+spec:
+  scheme: internet-facing
+YAML
+  depends_on = [
+    module.eks
+  ]
+}
+
+resource "kubernetes_ingress_class_v1" "automode" {
+  count = local.eks_auto_mode ? 1 : 0
+  metadata {
+    name = "auto-alb"
+    annotations = {
+      "ingressclass.kubernetes.io/is-default-class" = "true"
+    }
+  }
+  spec {
+    controller = "eks.amazonaws.com/alb"
+    parameters {
+      api_group = "eks.amazonaws.com"
+      kind      = "IngressClassParams"
+      name      = "auto-alb"
+    }
+  }
+  depends_on = [
+    kubectl_manifest.automode_ingressclass_params
   ]
 }

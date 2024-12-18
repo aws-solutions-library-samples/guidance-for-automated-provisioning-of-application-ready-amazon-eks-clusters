@@ -14,7 +14,7 @@ module "eks_blueprints_addons" {
   create_kubernetes_resources = true
 
   # common addons deployed with EKS Blueprints Addons
-  enable_aws_load_balancer_controller = try(var.cluster_config.capabilities.loadbalancing, true)
+  enable_aws_load_balancer_controller = local.capabilities.loadbalancing
   aws_load_balancer_controller = {
     values = [yamlencode(local.critical_addons_tolerations)]
   }
@@ -71,7 +71,7 @@ module "eks_blueprints_addons" {
   }
 
   # GitOps 
-  enable_argocd = try(var.cluster_config.capabilities.gitops, true)
+  enable_argocd = local.capabilities.gitops
   argocd = {
     enabled = true
     # The following settings are required to be set to true to ensure the
@@ -80,7 +80,6 @@ module "eks_blueprints_addons" {
     create_kubernetes_resources = true
     enable_argocd               = true
     argocd_namespace            = "argocd"
-
   }
 }
 

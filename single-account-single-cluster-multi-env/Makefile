@@ -21,6 +21,20 @@ else
 	TF_AUTO_APPROVE := ""
 endif
 
+define execute_terraform
+	set -o pipefail; \
+	terraform -chdir=$(1) $(2) $(3) \
+		-input=false \
+		-lock=true \
+		-var-file=$(VAR_FILE) \
+		 2>&1 | tee -a tf-logs/$(notdir $(1))-$(2).log; \
+	exit_code=$$?; \
+	if [ $$exit_code -ne 0 ]; then \
+		echo "Terraform $(2) failed for module $(1)"; \
+		exit $$exit_code; \
+	fi
+endef
+
 .PHONY: print-modules clean check-env bootstrap init-all plan-all apply-all destroy-all init refresh plan apply destroy
 
 print-modules:
@@ -121,34 +135,16 @@ tf-select-ws:
 
 refresh: init tf-select-ws
 	@echo ENVIRONMENT=$(ENVIRONMENT) MODULE=$(MODULE) terraform::refresh
-	@terraform -chdir=$(MODULE) refresh \
-		-input=false \
-		-lock=true \
-		-var-file=$(VAR_FILE) \
-		2>&1 | tee -a tf-logs/$(notdir $(MODULE))-refresh.log
+	@$(call execute_terraform,$(MODULE),refresh)
 
 plan: init tf-select-ws
 	@echo ENVIRONMENT=$(ENVIRONMENT) MODULE=$(MODULE) terraform::plan
-	@terraform -chdir=$(MODULE) plan \
-		-input=false \
-		-lock=true \
-		-var-file=$(VAR_FILE) \
-		2>&1 | tee -a tf-logs/$(notdir $(MODULE))-plan.log
+	@$(call execute_terraform,$(MODULE),plan)
 
 apply: init tf-select-ws
 	@echo ENVIRONMENT=$(ENVIRONMENT) MODULE=$(MODULE) terraform::apply
-	@terraform -chdir=$(MODULE) apply \
-		-input=false \
-		-lock=true \
-		-var-file=$(VAR_FILE) \
-		-auto-approve \
-		2>&1 | tee -a tf-logs/$(notdir $(MODULE))-apply.log
+	@$(call execute_terraform,$(MODULE),apply,"-auto-approve")
 
 destroy: init tf-select-ws
 	@echo ENVIRONMENT=$(ENVIRONMENT) MODULE=$(MODULE) terraform::destroy
-	@terraform -chdir=$(MODULE) apply -destroy \
-	-auto-approve \
-	-input=false \
-	-lock=true \
-	-var-file=$(VAR_FILE) \
-	2>&1 | tee -a tf-logs/$(notdir $(MODULE))-destroy.log
+	@$(call execute_terraform,$(MODULE),destroy,"-auto-approve")

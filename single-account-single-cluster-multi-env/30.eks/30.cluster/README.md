@@ -10,6 +10,7 @@ This part of this pattern creates the Amazon EKS Cluster and its minimal configu
   * [CoreDNS](https://docs.aws.amazon.com/eks/latest/userguide/managing-coredns.html)
 * [Amazon EKS Managed Node Group](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html) - this is a static set of nodes (meaning they're not autoscale up or down) that are used by the core addons that runs on the cluster, mainly for Karpenter
 * [Karpenter] addon (https://karpenter.sh) - for node autoscaling with a default provisioner for most use-cases
+* [Amazon EKS Auto Mode](https://docs.aws.amazon.com/eks/latest/userguide/automode.html) - When enabled, all above configurations and addons will be managed by EKS Auto Mode.
 
 ## Prerequisites  
 
@@ -53,15 +54,35 @@ Since AWS Fargate requires different configuration and deployment types for addo
 
 Using Amazon EKS Managed node groups for Karpenter deployment, simplify the deployment of other networking and observability addons, mainly because the ability to deploy DaemonSets on the managed node groups
 
+### EKS Auto Mode
+
+#### Context
+
+EKS Auto Mode extends AWS management of Kubernetes clusters beyond the cluster itself, to allow AWS to also set up and manage the infrastructure that enables the smooth operation of your workloads. You can delegate key infrastructure decisions and leverage the expertise of AWS for day-to-day operations. Cluster infrastructure managed by AWS includes many Kubernetes capabilities as core components, as opposed to add-ons, such as compute autoscaling, pod and service networking, application load balancing, cluster DNS, block storage, and GPU support.
+
+#### Decision
+
+EKS Auto Mode simplifies Kubernetes management by automatically provisioning infrastructure, selecting optimal compute instances, dynamically scaling resources, continuously optimizing costs, managing core add-ons, patching operating systems, and integrating with AWS security services
+
+#### Consequences
+
+Enabling EKS Auto Mode will automatically deploy and manage essential controllers for compute, networking, and storage.
+
+Enables automatic provisioning and management of node pools using EKS Auto mode Karpenter, it includes:
+  * NodePool configurations for general-purpose and system workloads
+  * NodeClass configuration for defining node characteristics
+  * Customizable settings for instance types, architectures
+
+See the [`auto-mode/default.yaml`](./auto-mode/default.yaml) for detailed configuration.
+
+When enabling EKS Auto Mode [`cluster_config.eks_auto_mode = true`](../../00.global/vars/am.tfvars) the self-managed capabilities (kube-proxy, VPC CNI, CoreDNS, LB Controller, Pod Identity, Karpenter, EBS Driver) will be disabled by default and will be managed by EKS Auto Mode.
+
 ## Deploy it
 
-To deploy this folder resources to a specific resources, use the following commands
+To deploy this module, refer to [Single Cluster / Single Environment / Single Account](../../README.md)
 
 ```
-terraform init --backend-config=../../00.global/global-backend-config
-terraform workspace new <YOUR_ENV>
-terraform workspace select <YOUR_ENV>
-terraform apply -var-file="../../00.global/vars/dev.tfvars"
+make ENVIRONMENT=dev MODULE=30.eks/30.cluster apply
 ```
 
 

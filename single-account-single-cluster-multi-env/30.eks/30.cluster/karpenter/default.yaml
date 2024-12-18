@@ -1,12 +1,19 @@
 ---
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: default
 spec:
+  disruption:
+    budgets:
+    - nodes: 10%
+    consolidateAfter: 30s
+    consolidationPolicy: WhenEmptyOrUnderutilized
   template:
     spec:
       nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
         name: default
       requirements:
         - key: kubernetes.io/arch
@@ -23,19 +30,18 @@ spec:
           values: ["c", "m", "r"]
         - key: karpenter.k8s.aws/instance-generation
           operator: Gt
-          values: ["2"]
+          values: ["4"]
         - key: karpenter.k8s.aws/instance-size
           operator: NotIn
           values: [nano, micro, small, medium]
-          disruption:
-            consolidationPolicy: WhenUnderutilized
 ---
-apiVersion: karpenter.k8s.aws/v1beta1
+apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
   name: default
 spec:
-  amiFamily: AL2
+  amiSelectorTerms:
+    - alias: al2@latest
   role: ${role}
   subnetSelectorTerms:
     - tags:
@@ -49,4 +55,4 @@ spec:
   tags:
     karpenter.sh/discovery: ${cluster_name}
     Environment: ${environment}
-    provisioned-by: "aws-samples/terraform-workloads-ready-eks-accelerator"
+    provisioned-by: "aws-solutions-library-samples/guidance-for-automated-provisioning-of-application-ready-amazon-eks-clusters"

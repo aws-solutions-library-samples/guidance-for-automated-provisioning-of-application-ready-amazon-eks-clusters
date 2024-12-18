@@ -24,7 +24,6 @@ This reference implementation is designed to deploy a single Amazon EKS cluster 
 This pattern deploy the following resources per environment in a single account:
 
 * Terraform remote state and locking mechanism for collaboration - this deploys  Amazon S3 and Amazon DynamoDB requires to manage Terraform remote state backend configuration.
-See [`tf-base`](./00.tf-base/main.tf) configurations
   
 * Network configuration - the base Amazon VPC configuration needed for the Amazon EKS cluster. As an example, this includes provisioning Amazon VPC Endpoints to [reduce cost and increase security](https://aws.amazon.com/blogs/architecture/reduce-cost-and-increase-security-with-amazon-vpc-endpoints/).
 See networking [README](./10.networking/README.md) for detailed configuration
@@ -33,6 +32,7 @@ See networking [README](./10.networking/README.md) for detailed configuration
 See "IAM Roles for EKS" [README](./20.iam-roles-for-eks/README.md) for detailed configuration
 * Amazon EKS Cluster - configured with set of defaults (described in the EKS Cluster README) alongside with a baseline set of Amazon EKS add-ons that are needed for a minimal functionality (including Karpenter for node provisioning). 
 See EKS Cluster [README](./30.eks/30.cluster/README.md) for detailed configuration
+  * EKS Auto Mode - Enabling EKS Auto Mode will provide a fully automated cluster management for compute, storage, and networking.
 
 * EKS Blueprints addons - The intent of this folder is to provision the relevant addons, based on enabled capabilities configured for this reference implementation.
 See EKS Cluster [README](./30.eks/35.addons/README.md) for detailed configuration
@@ -46,7 +46,7 @@ See EKS Cluster [README](./30.eks/35.addons/README.md) for detailed configuratio
 
 ## Configurable variables
 
-This pattern use a global configurable variable per environment to allow you to customize some of the environment specific objects for the different environments. The variables are documented on a configuration file under the `00.global/var/base-env.tfvars` file. 
+This pattern use a global configurable variable per environment to allow you to customize some of the environment specific objects for the different environments. The variables are documented on a configuration file under the `00.global/vars/example.tfvars` file. 
 
 Instead of configuring flags for provisioning resources, this pattern uses use-case driven flags that result in a complete configuration for a collection of deployments, services, and configuration. For example, setting `observability_configuration.aws_oss_tooling = true` will result in provisioning the relevant AWS resources (such as AMP and AMG) as well the configurations that connects them together. 
 
@@ -56,7 +56,7 @@ This pattern rely on multiple Terraform configuration which resides in multiple 
 Each folder that holds a Terraform configuration, also has a `backend.tf` terraform configuration file used to indicate the backend S3 prefix key.
 
 Before deploying the whole cluster configuration, this pattern use Amazon S3 and Amazon DynamoDB to store the Terraform state of all resources across environments, and provide a locking mechanism.   
-The deployment of the S3 Bucket and the DynamoDB table is configured under the folder [`00.tf-base`](./00.tf-base).
+The deployment of the S3 Bucket and the DynamoDB table is configured in the [`Makefile`](./Makefile) under the `bootstrap` stage.
 
 Default S3 bucket name: `tfstate-<AWS_ACCOUNT_ID>`  
 Default DynamoDB table name: `tfstate-lock`
@@ -70,7 +70,7 @@ We are using a [`Makefile`](./Makefile) that is designed to automate varius task
 It provides several targets (or commands) to handle different aspects of the Terraform workflow.
 
 **Targets**:
-   - `bootstrap`: Initializes and applies the Terraform configuration in the `00.tf-base` directory, which is assumed to be responsible for setting up the backend (S3 bucket and DynamoDB table) for state management.
+   - `bootstrap`: Responsible for setting up the backend (S3 bucket and DynamoDB table) for state management.
    - `init-all`: Initializes all Terraform modules by calling the `init` target for each module.
    - `plan-all`: Runs the `plan` target for all Terraform modules.
    - `apply-all`: Runs the `apply` target for all Terraform modules.
@@ -95,8 +95,8 @@ make bootstrap
 
 In this step you should define the environments you want to deploy to (can be dev, staging, prod, etc...), as well as the overall configuration variables for every environment.
 
-To define the environments you want to deplo ensure that under the folder [`00.global/vars/`](00.global/vars) you have files for every environment with the exact name of the environments defined equivalent to the `ENVIRONMENT` we will use with our Makefile.   
-As a starting point, this reference implementation includes a general baseline file names [`base-env.tfvars`](./00.global/vars/base-env.tfvars) as well as files for `dev` and `prod` environments.
+To define the environments you want to deploy ensure that under the folder [`00.global/vars/`](00.global/vars) you have files for every environment with the exact name of the environments defined equivalent to the `ENVIRONMENT` we will use with our Makefile.   
+As a starting point, this reference implementation includes a general baseline file names [`example.tfvars`](./00.global/vars/example.tfvars) as well as files for `dev` and `prod` environments.
 
 ### Step 3 - Deploy environment
 In this step you will deploy the environment based on the configuration you defined per environment in previous step.  

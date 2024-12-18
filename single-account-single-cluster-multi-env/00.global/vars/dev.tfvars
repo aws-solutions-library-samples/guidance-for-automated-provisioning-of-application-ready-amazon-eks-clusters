@@ -23,6 +23,5 @@ observability_configuration = {
     enable_adot_collector    = false
     prometheus_name          = "prom"
     enable_grafana_operator  = true
-
   }
 }
