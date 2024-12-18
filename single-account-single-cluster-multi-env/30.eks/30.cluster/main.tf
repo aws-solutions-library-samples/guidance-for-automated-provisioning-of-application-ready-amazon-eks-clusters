@@ -8,9 +8,7 @@ data "aws_iam_session_context" "current" {
   # Ref https://github.com/hashicorp/terraform-provider-aws/issues/28381
   arn = data.aws_caller_identity.current.arn
 }
-data "aws_ecrpublic_authorization_token" "token" {
-  provider = aws.virginia
-}
+
 
 ################################################################################
 # EKS Cluster
@@ -218,30 +216,6 @@ resource "null_resource" "update-kubeconfig" {
   }
 }
 
-# Add the karpenter discovery tag only to the cluster primary security group
-# by default if use the eks module tags, it will tag all resources with this tag, which is not needed.
-resource "aws_ec2_tag" "cluster_primary_security_group" {
-  count       = local.capabilities.autoscaling ? 1 : 0
-  resource_id = module.eks.cluster_primary_security_group_id
-  key         = "karpenter.sh/discovery"
-  value       = local.cluster_name
-}
-
-################################################################################
-# Cluster Access Management - permissions of Karpenter node Role
-################################################################################
-resource "aws_eks_access_entry" "karpenter_node" {
-  count         = local.capabilities.autoscaling ? 1 : 0
-  cluster_name  = module.eks.cluster_name
-  principal_arn = module.eks_blueprints_addons.karpenter.node_iam_role_arn
-
-  # From https://docs.aws.amazon.com/eks/latest/APIReference/API_CreateAccessEntry.html :
-  # If you set the value to EC2_LINUX or EC2_WINDOWS, you can't specify values for kubernetesGroups, or associate an AccessPolicy to the access entry.
-  type = "EC2_LINUX"
-
-  depends_on = [module.eks_blueprints_addons.karpenter]
-}
-
 ################################################################################
 # EBS CSI Driver
 ################################################################################
@@ -262,63 +236,6 @@ module "ebs_csi_driver_irsa" {
       namespace_service_accounts = ["kube-system:ebs-csi-controller-sa"]
     }
   }
-}
-
-
-################################################################################
-# EKS Blueprints Addons - common/base addons for every cluster
-################################################################################
-
-module "eks_blueprints_addons" {
-  source  = "aws-ia/eks-blueprints-addons/aws"
-  version = "~> 1.16.2"
-
-  cluster_name      = module.eks.cluster_name
-  cluster_endpoint  = module.eks.cluster_endpoint
-  cluster_version   = module.eks.cluster_version
-  oidc_provider_arn = module.eks.oidc_provider_arn
-
-  # We want to wait for the Fargate profiles to be deployed first
-  create_delay_dependencies = [for prof in module.eks.fargate_profiles : prof.fargate_profile_arn]
-
-  # by default, Karpenter helm chart is set to not schedule Karpenter pods, on nodes it creates,
-  #  so no additional nodeSelector is needed here to ensure it'll run on the above node-groups
-  enable_karpenter = local.capabilities.autoscaling
-  karpenter = {
-    repository_username = data.aws_ecrpublic_authorization_token.token.user_name
-    repository_password = data.aws_ecrpublic_authorization_token.token.password
-    namespace           = "kube-system"
-    values              = [yamlencode(local.critical_addons_tolerations)]
-  }
-  karpenter_node = {
-    # Use static name so that it matches what is defined in `karpenter.yaml` example manifest
-    iam_role_use_name_prefix = false
-  }
-
-  tags = local.tags
-
-  depends_on = [module.eks]
-}
-
-################################################################################
-# Karpenter default NodePool & NodeClass
-################################################################################
-data "kubectl_path_documents" "karpenter_manifests" {
-  count   = local.capabilities.autoscaling ? 1 : 0
-  pattern = "${path.module}/karpenter/*.yaml"
-  vars = {
-    role         = module.eks_blueprints_addons.karpenter.node_iam_role_name
-    cluster_name = local.cluster_name
-    environment  = terraform.workspace
-  }
-  depends_on = [
-    module.eks_blueprints_addons
-  ]
-}
-
-resource "kubectl_manifest" "karpenter_manifests" {
-  count     = local.capabilities.autoscaling ? length(data.kubectl_path_documents.karpenter_manifests[0].documents) : 0
-  yaml_body = element(data.kubectl_path_documents.karpenter_manifests[0].documents, count.index)
 }
 
 ################################################################################
