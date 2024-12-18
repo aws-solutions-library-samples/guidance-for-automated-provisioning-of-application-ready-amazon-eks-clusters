@@ -75,6 +75,8 @@ Enables automatic provisioning and management of node pools using EKS Auto mode 
 
 See the [`auto-mode/default.yaml`](./auto-mode/default.yaml) for detailed configuration.
 
+When enabling EKS Auto Mode [`cluster_config.eks_auto_mode = true`](../../00.global/vars/am.tfvars) the self-managed capabilities (kube-proxy, VPC CNI, CoreDNS, LB Controller, Pod Identity, Karpenter, EBS Driver) will be disabled by default and will be managed by EKS Auto Mode.
+
 ## Deploy it
 
 To deploy this module, refer to [Single Cluster / Single Environment / Single Account](../../README.md)
