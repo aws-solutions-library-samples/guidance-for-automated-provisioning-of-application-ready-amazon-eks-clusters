@@ -1,7 +1,7 @@
 locals {
-  region         = data.aws_region.current.id
-  tfstate_region = try(var.tfstate_region, local.region)
-
+  region = data.aws_region.current.id
+  cluster_name = data.terraform_remote_state.eks.outputs.cluster_name
+  
   tags = merge(
     var.tags,
     {

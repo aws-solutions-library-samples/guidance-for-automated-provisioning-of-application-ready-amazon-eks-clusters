@@ -58,7 +58,7 @@ Each folder that holds a Terraform configuration, also has a `backend.tf` terraf
 Before deploying the whole cluster configuration, this pattern use Amazon S3 and Amazon DynamoDB to store the Terraform state of all resources across environments, and provide a locking mechanism.   
 The deployment of the S3 Bucket and the DynamoDB table is configured in the [`Makefile`](./Makefile) under the `bootstrap` stage.
 
-Default S3 bucket name: `tfstate-<AWS_ACCOUNT_ID>`  
+Default S3 bucket name: `${resources_prefix}-tfstate-${AWS_ACCOUNT_ID}`  
 Default DynamoDB table name: `tfstate-lock`
 
 Several environment variables must be used before running any target
