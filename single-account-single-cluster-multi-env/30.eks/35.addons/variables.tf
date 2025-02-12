@@ -16,6 +16,12 @@ variable "cluster_config" {
   default     = {}
 }
 
+variable "shared_config" {
+  description = "Shared configuration across all modules/folders"
+  type        = map(any)
+  default     = {}
+}
+
 variable "observability_configuration" {
   description = "observability configuration variable"
   type = object({

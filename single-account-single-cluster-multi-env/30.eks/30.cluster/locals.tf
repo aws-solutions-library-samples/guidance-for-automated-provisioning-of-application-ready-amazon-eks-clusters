@@ -1,7 +1,6 @@
 locals {
   cluster_name    = "${var.shared_config.resources_prefix}-${terraform.workspace}"
   region          = data.aws_region.current.id
-  tfstate_region  = try(var.tfstate_region, local.region)
   cluster_version = var.cluster_config.kubernetes_version
   eks_auto_mode   = try(var.cluster_config.eks_auto_mode, false)
 

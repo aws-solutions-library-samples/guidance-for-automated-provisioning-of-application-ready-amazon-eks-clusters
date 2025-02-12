@@ -5,10 +5,11 @@ SHELLFLAGS = -o pipefail
 ENVIRONMENT ?= dev
 AWS_REGION ?= $(shell aws configure get region)
 AWS_ACCOUNT_ID ?= $(shell aws sts get-caller-identity --output json | jq -r '.Account')
-TFSTATE_S3_BUCKET ?= "tfstate-$(AWS_ACCOUNT_ID)"
+VAR_FILE := $(CURDIR)/00.global/vars/$(ENVIRONMENT).tfvars
+RESOURCES_PREFIX ?= $(shell awk -F '=' '/resources_prefix/{gsub(/[" \t]|\/\/.*$$/, "", $$2); print $$2}' $(VAR_FILE))
+TFSTATE_S3_BUCKET ?= $(RESOURCES_PREFIX)-tfstate-$(AWS_ACCOUNT_ID)
 TFSTATE_REGION ?= $(AWS_REGION)
 TFSTATE_DDB_TABLE ?= "tfstate-lock"
-VAR_FILE := $(CURDIR)/00.global/vars/$(ENVIRONMENT).tfvars
 
 TF_VAR_tfstate_region := $(TFSTATE_REGION)
 export TF_VAR_tfstate_region
@@ -55,7 +56,12 @@ check-env:
 	 fi
 	@if [ ! -f $(VAR_FILE) ]; then \
   		echo "VAR_FILE: $(VAR_FILE) does not exist."; \
+		exit 1; \
   	fi
+	@if [ -z "$(RESOURCES_PREFIX)" ]; then \
+		echo "Failed to extract RESOURCES_PREFIX from $(VAR_FILE)"; \
+		exit 1; \
+	fi
 
 	@mkdir -p tf-logs
 
@@ -69,7 +75,13 @@ bootstrap: check-env
 		aws s3api put-bucket-acl --region $(TFSTATE_REGION) --bucket $(TFSTATE_S3_BUCKET) --acl private > /dev/null 2>&1; \
 		aws s3api put-public-access-block --bucket $(TFSTATE_S3_BUCKET) --public-access-block-configuration "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true" > /dev/null 2>&1; \
 		aws s3api put-bucket-versioning --region $(TFSTATE_REGION) --bucket $(TFSTATE_S3_BUCKET) --versioning-configuration Status=Enabled > /dev/null 2>&1; \
-		echo "Created S3 Bucket $(TFSTATE_S3_BUCKET)."; \
+		echo "Created S3 Bucket $(TFSTATE_S3_BUCKET). Waiting for bucket to be fully available..."; \
+		sleep 10; \
+		until aws s3api head-bucket --region $(TFSTATE_REGION) --bucket $(TFSTATE_S3_BUCKET) > /dev/null 2>&1; do \
+			echo "Waiting for S3 bucket to be available..."; \
+			sleep 5; \
+		done; \
+		echo "S3 Bucket $(TFSTATE_S3_BUCKET) is now available."; \
 	 else \
 		echo "S3 Bucket $(TFSTATE_S3_BUCKET) exists."; \
 	 fi
@@ -123,6 +135,8 @@ init: check-env
 		-backend-config="region=$(TFSTATE_REGION)" \
 		-backend-config="bucket=$(TFSTATE_S3_BUCKET)" \
 		-backend-config="dynamodb_table=$(TFSTATE_DDB_TABLE)" \
+		-var="tfstate_bucket=$(TFSTATE_S3_BUCKET)" \
+		-var="tfstate_region=$(TFSTATE_REGION)" \
 		2>&1 | tee -a tf-logs/$(notdir $(MODULE))-init.log
 
 tf-select-ws:
