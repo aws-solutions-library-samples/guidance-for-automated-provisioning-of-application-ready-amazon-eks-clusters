@@ -95,7 +95,7 @@ This architecture is designed to provide a secure, scalable, and easily manageab
 
 ### Architecture Steps
 
-1. DevOps engineer defines a per-environment [Terraform variable file](https://developer.hashicorp.com/terraform/language/values/variables#variable-definitions-tfvars-files) that controls all of the environment-specific configuration. This variable file is used in every step of the process by all IaC configurations.
+1. Admin/DevOps engineer defines a per-environment [Terraform variable file](https://developer.hashicorp.com/terraform/language/values/variables#variable-definitions-tfvars-files) that controls all of the environment-specific configuration. This variable file is used in every step of the process by all IaC configurations.
 
 2. DevOps engineer applies the environment configuration using Terraform following the deployment process defined in the guidance.
 
