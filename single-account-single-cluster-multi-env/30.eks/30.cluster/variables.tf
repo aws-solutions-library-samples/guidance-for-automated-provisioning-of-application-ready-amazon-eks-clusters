@@ -1,14 +1,7 @@
-variable "tfstate_region" {
-  description = "region where the terraform state is stored"
-  type        = string
-  default     = null
-}
-
 variable "kms_key_admin_roles" {
   description = "list of role ARNs to add to the KMS policy"
   type        = list(string)
   default     = []
-
 }
 
 variable "tags" {
