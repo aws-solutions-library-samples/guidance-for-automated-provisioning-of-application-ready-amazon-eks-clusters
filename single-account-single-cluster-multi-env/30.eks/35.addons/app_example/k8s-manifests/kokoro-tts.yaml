@@ -1,0 +1,245 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kokoro-tts-app
+  namespace: inference
+data:
+  app.py: |
+    from fastapi import FastAPI, HTTPException
+    from fastapi.responses import Response
+    from pydantic import BaseModel
+    from kokoro import KPipeline
+    import io
+    import soundfile as sf
+    import os
+    import torch
+    import multiprocessing
+    import time
+
+    app = FastAPI(title="Text-to-Speech API")
+
+    # Global lock for GPU access
+    gpu_lock = multiprocessing.Lock()
+
+    # Track application startup time and state
+    startup_time = time.time()
+    STARTUP_GRACE_PERIOD = 300  # seconds
+    pipeline = None
+    pipeline_initialization_started = False
+    pipeline_initialization_error = None
+
+    def initialize_pipeline():
+        global pipeline_initialization_error
+        try:
+            with gpu_lock:
+                # First try GPU
+                if torch.cuda.is_available():
+                    try:
+                        return KPipeline(lang_code='a', device='cuda')
+                    except RuntimeError as e:
+                        print(f"GPU initialization failed: {e}. Falling back to CPU.")
+                        pipeline_initialization_error = str(e)
+                
+                # Fallback to CPU
+                return KPipeline(lang_code='a', device='cpu')
+        except Exception as e:
+            error_msg = f"Failed to initialize TTS pipeline: {e}"
+            print(f"Pipeline initialization error: {error_msg}")
+            pipeline_initialization_error = error_msg
+            return None
+
+    class TTSRequest(BaseModel):
+        text: str
+        voice: str = "af_bella"
+        speed: float = 1.0
+
+    @app.post("/tts")
+    async def text_to_speech(request: TTSRequest):
+        global pipeline
+        
+        # Lazy initialization of pipeline
+        if pipeline is None:
+            try:
+                pipeline = initialize_pipeline()
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e))
+
+        try:
+            # Generate audio with GPU lock
+            with gpu_lock:
+                audio_segments = []
+                for _, _, audio in pipeline(
+                    text=request.text,
+                    voice=request.voice,
+                    speed=request.speed,
+                    split_pattern=r'\n+'
+                ):
+                    audio_segments.append(audio)
+            
+            # Concatenate all audio segments
+            final_audio = audio_segments[0] if len(audio_segments) == 1 else \
+                         audio_segments[0].copy() if len(audio_segments) > 1 else None
+            
+            if len(audio_segments) > 1:
+                for segment in audio_segments[1:]:
+                    final_audio = audio_segments[0].copy()
+                    final_audio.extend(segment)
+
+            if final_audio is None:
+                raise HTTPException(status_code=400, detail="No audio generated")
+
+            # Convert to WAV format in memory
+            buffer = io.BytesIO()
+            sf.write(buffer, final_audio, 24000, format='WAV')
+            buffer.seek(0)
+
+            return Response(
+                content=buffer.read(),
+                media_type="audio/wav",
+                headers={
+                    "Content-Disposition": "attachment; filename=speech.wav"
+                }
+            )
+
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.get("/health")
+    async def health_check():
+        """Health check endpoint that provides consistent response format"""
+        global pipeline, pipeline_initialization_started, pipeline_initialization_error
+        
+        # Common response structure
+        response = {
+            "status": "healthy",
+            "model": "kokoro-tts",
+            "ready": False
+        }
+        
+        # During grace period
+        if time.time() - startup_time < STARTUP_GRACE_PERIOD:
+            response["device"] = "initializing"
+            response["ready"] = True  # Consider ready during grace period
+            return response
+        
+        # Start pipeline initialization if not started
+        if pipeline is None and not pipeline_initialization_started:
+            pipeline_initialization_started = True
+            pipeline = initialize_pipeline()
+        
+        # If pipeline is initialized successfully
+        if pipeline is not None:
+            device = pipeline.model.device if hasattr(pipeline, 'model') else 'unknown'
+            response["device"] = str(device)
+            response["ready"] = True
+            return response
+        
+        # If there was an initialization error
+        if pipeline_initialization_error:
+            response["status"] = "unhealthy"
+            response["error"] = pipeline_initialization_error
+            response["device"] = "failed"
+            return response
+        
+        # Still initializing
+        response["device"] = "initializing"
+        return response
+
+    @app.get("/voices")
+    async def list_voices():
+        return {
+            "voices": [
+                {"id": "af_bella", "language": "en-US", "name": "Bella (Female)"},
+                # Add other available voices here
+            ]
+        }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kokoro-tts
+  namespace: inference
+  labels:
+    app: kokoro-tts
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kokoro-tts
+  template:
+    metadata:
+      labels:
+        app: kokoro-tts
+    spec:
+      containers:
+      - name: tts
+        image: 240484791744.dkr.ecr.eu-central-1.amazonaws.com/kokoro-tts:latest
+        env:
+        - name: MODEL_ID
+          value: "hexgrad/Kokoro-82M"
+        - name: LANG_CODE
+          value: "a"
+        - name: KOKORO_MODEL_PATH
+          value: "/models/kokoro"
+        - name: KOKORO_CACHE_DIR
+          value: "/cache"
+        ports:
+        - containerPort: 8080
+          name: http
+        resources:
+          limits:
+            cpu: "4"
+            memory: "8G"
+            nvidia.com/gpu: "1"
+          requests:
+            cpu: "2"
+            memory: "4G"
+            nvidia.com/gpu: "1"
+        volumeMounts:
+        - name: models
+          mountPath: /models
+        - name: cache
+          mountPath: /cache
+        - name: app-code
+          mountPath: /app
+      tolerations:
+      - key: nvidia.com/gpu
+        value: present
+        effect: NoSchedule
+      nodeSelector:
+        karpenter.sh/nodepool: gpu-nodepool
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: karpenter.k8s.aws/instance-category
+                operator: In
+                values: ["g"]
+              - key: karpenter.k8s.aws/instance-family
+                operator: In
+                values: ["g5", "g6"]
+      volumes:
+      - name: models
+        emptyDir: {}
+      - name: cache
+        emptyDir: {}
+      - name: app-code
+        configMap:
+          name: kokoro-tts-app
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kokoro-tts
+  namespace: inference
+  labels:
+    app: kokoro-tts
+spec:
+  type: ClusterIP
+  selector:
+    app: kokoro-tts
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: http 

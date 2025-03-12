@@ -1,0 +1,491 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: integration-code
+  namespace: inference
+  labels:
+    app: integration-service
+data:
+  app.py: |
+    import os
+    import requests
+    from fastapi import FastAPI, HTTPException
+    from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
+    from fastapi.middleware.cors import CORSMiddleware
+    from pydantic import BaseModel
+    import tempfile
+    import uuid
+    import logging
+    import re
+    import wave
+    import json
+    from typing import Optional, List, AsyncGenerator, Dict
+    import io
+    import asyncio
+    import aiohttp
+    from sse_starlette.sse import EventSourceResponse
+    from contextlib import asynccontextmanager
+
+    app = FastAPI()
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    
+    logging.basicConfig(level=logging.INFO)
+
+    DEEPSEEK_URL = os.environ.get("DEEPSEEK_URL", "http://deepseek-vllm:8000/v1/chat/completions")
+    KOKORO_URL = os.environ.get("KOKORO_URL", "http://kokoro-tts:8080/tts")
+
+    # Global session pool
+    session_pool: Optional[aiohttp.ClientSession] = None
+    
+    @asynccontextmanager
+    async def get_session():
+        global session_pool
+        if session_pool is None:
+            timeout = aiohttp.ClientTimeout(total=30)
+            session_pool = aiohttp.ClientSession(timeout=timeout)
+        try:
+            yield session_pool
+        except Exception as e:
+            logging.error(f"Session error: {e}")
+            if session_pool:
+                await session_pool.close()
+                session_pool = None
+            raise
+
+    @app.on_event("shutdown")
+    async def shutdown_event():
+        global session_pool
+        if session_pool:
+            await session_pool.close()
+            session_pool = None
+
+    class ChatRequest(BaseModel):
+        input: str
+
+    def extract_final_response(text: str) -> str:
+        """Extract the final response from DeepSeek output, removing thinking process."""
+        # If response contains <think> tags, extract content after last </think>
+        if "</think>" in text:
+            parts = text.split("</think>")
+            return parts[-1].strip()
+        
+        # If no tags, try to find the last quoted response or last paragraph
+        paragraphs = text.split("\n\n")
+        if paragraphs:
+            return paragraphs[-1].strip()
+        
+        return text.strip()
+
+    def split_text_into_chunks(text: str) -> List[str]:
+        """Split text into natural chunks for TTS processing."""
+        # First, split into paragraphs
+        paragraphs = text.split('\n\n')
+        chunks = []
+        
+        for paragraph in paragraphs:
+            paragraph = paragraph.strip()
+            if not paragraph:
+                continue
+                
+            # If paragraph is short enough, keep it as is
+            if len(paragraph) <= 250:
+                chunks.append(paragraph)
+                continue
+            
+            # For longer paragraphs, try to split on natural breaks
+            current_chunk = []
+            current_length = 0
+            
+            # Split on sentence boundaries first
+            sentences = re.split(r'(?<=[.!?])\s+', paragraph)
+            
+            for sentence in sentences:
+                sentence = sentence.strip()
+                if not sentence:
+                    continue
+                    
+                # If adding this sentence would make chunk too long, save current chunk
+                if current_length + len(sentence) > 250 and current_chunk:
+                    chunks.append(' '.join(current_chunk))
+                    current_chunk = []
+                    current_length = 0
+                
+                # If single sentence is too long, split on clauses
+                if len(sentence) > 250:
+                    clauses = re.split(r'(?<=[,;:])\s+', sentence)
+                    for clause in clauses:
+                        clause = clause.strip()
+                        if len(clause) > 250:  # If still too long, split on spaces
+                            words = clause.split()
+                            temp_chunk = []
+                            temp_length = 0
+                            for word in words:
+                                if temp_length + len(word) + 1 > 250:
+                                    chunks.append(' '.join(temp_chunk))
+                                    temp_chunk = [word]
+                                    temp_length = len(word)
+                                else:
+                                    temp_chunk.append(word)
+                                    temp_length += len(word) + 1
+                            if temp_chunk:
+                                chunks.append(' '.join(temp_chunk))
+                        else:
+                            if current_length + len(clause) > 250:
+                                chunks.append(' '.join(current_chunk))
+                                current_chunk = [clause]
+                                current_length = len(clause)
+                            else:
+                                current_chunk.append(clause)
+                                current_length += len(clause) + 2  # +2 for punctuation and space
+                else:
+                    current_chunk.append(sentence)
+                    current_length += len(sentence) + 1
+            
+            if current_chunk:
+                chunks.append(' '.join(current_chunk))
+        
+        return chunks
+
+    def clean_text_for_tts(text: str) -> str:
+        """Clean and prepare text for TTS processing."""
+        # Remove any remaining markdown or special characters
+        text = re.sub(r'[*_`#]', '', text)
+        # Remove multiple spaces and newlines
+        text = re.sub(r'\s+', ' ', text)
+        # Remove text in parentheses
+        text = re.sub(r'\([^)]*\)', '', text)
+        # Remove thinking process markers
+        text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
+        # Normalize punctuation
+        text = re.sub(r'\.{2,}', '.', text)  # Replace multiple dots with single
+        text = re.sub(r'\s*([.,!?;:])\s*', r'\1 ', text)  # Normalize spacing around punctuation
+        return text.strip()
+
+    def combine_wav_files(wav_contents: List[bytes]) -> bytes:
+        """Combine multiple WAV files into one."""
+        if not wav_contents:
+            return b''
+        
+        # Read the first WAV to get parameters
+        with wave.open(io.BytesIO(wav_contents[0]), 'rb') as first_wav:
+            params = first_wav.getparams()
+        
+        # Create output WAV
+        output = io.BytesIO()
+        with wave.open(output, 'wb') as out_wav:
+            out_wav.setparams(params)
+            
+            # Write all WAV data
+            for wav_content in wav_contents:
+                with wave.open(io.BytesIO(wav_content), 'rb') as wav:
+                    out_wav.writeframes(wav.readframes(wav.getnframes()))
+        
+        return output.getvalue()
+
+    async def process_text_chunks(text: str) -> List[bytes]:
+        """Process text in optimal chunks for TTS."""
+        # Clean the text first
+        cleaned_text = clean_text_for_tts(text)
+        
+        # Split into chunks
+        chunks = split_text_into_chunks(cleaned_text)
+        
+        # Process chunks in parallel
+        async with get_session() as session:
+            tasks = []
+            for chunk in chunks:
+                if not chunk.strip():
+                    continue
+                    
+                # Ensure chunk ends with proper punctuation
+                chunk = chunk.rstrip()
+                if not chunk[-1] in '.!?':
+                    chunk += '.'
+                
+                tasks.append(
+                    session.post(
+                        KOKORO_URL,
+                        headers={"Content-Type": "application/json"},
+                        json={
+                            "text": chunk,
+                            "voice": "af_bella",
+                            "speed": 1.0
+                        }
+                    )
+                )
+            
+            if not tasks:
+                return []
+            
+            # Execute all TTS requests in parallel
+            responses = await asyncio.gather(*tasks, return_exceptions=True)
+            audio_contents = []
+            
+            for i, response in enumerate(responses):
+                try:
+                    if isinstance(response, Exception):
+                        logging.error(f"Error processing chunk {i}: {response}")
+                        continue
+                    if response.status == 200:
+                        audio_contents.append(await response.read())
+                    else:
+                        logging.warning(f"Failed to generate TTS for chunk {i}: {await response.text()}")
+                except Exception as e:
+                    logging.error(f"Error processing response {i}: {e}")
+            
+            return audio_contents
+
+    @app.post("/api/chat")
+    async def chat(request: ChatRequest):
+        """Non-streaming endpoint with optimized chunk processing."""
+        try:
+            if not request.input:
+                raise HTTPException(status_code=400, detail="No input provided")
+                
+            # Call DeepSeek for text completion
+            async with get_session() as session:
+                async with session.post(
+                    DEEPSEEK_URL,
+                    json={
+                        "model": "deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
+                        "messages": [{"role": "user", "content": request.input}]
+                    }
+                ) as response:
+                    if response.status != 200:
+                        raise HTTPException(
+                            status_code=500, 
+                            detail=f"DeepSeek API error: {await response.text()}"
+                        )
+                    
+                    completion_result = await response.json()
+                    llm_response = completion_result["choices"][0]["message"]["content"]
+                    
+                    # Extract and clean the final response
+                    final_response = extract_final_response(llm_response)
+                    
+                    # Process text in optimal chunks
+                    audio_contents = await process_text_chunks(final_response)
+                    
+                    if audio_contents:
+                        # Combine all audio files
+                        combined_audio = combine_wav_files(audio_contents)
+                        
+                        # Save combined audio to a temporary file
+                        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+                        temp_file.write(combined_audio)
+                        temp_file.close()
+                        
+                        return {
+                            "text": final_response,
+                            "audio_url": f"/api/audio/{os.path.basename(temp_file.name)}"
+                        }
+                    else:
+                        return {
+                            "text": final_response,
+                            "tts_error": "Failed to generate audio"
+                        }
+            
+        except Exception as e:
+            logging.error(f"Error in chat endpoint: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def stream_chat_response(request: ChatRequest) -> AsyncGenerator[str, None]:
+        """Stream both text and audio responses with optimized chunk processing."""
+        try:
+            # Call DeepSeek for text completion
+            async with get_session() as session:
+                async with session.post(
+                    DEEPSEEK_URL,
+                    json={
+                        "model": "deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
+                        "messages": [{"role": "user", "content": request.input}],
+                        "stream": True
+                    }
+                ) as response:
+                    buffer = ""
+                    current_chunk = []
+                    current_length = 0
+                    
+                    async for line in response.content:
+                        if line:
+                            try:
+                                line = line.decode('utf-8').strip()
+                                if line.startswith('data: '):
+                                    line = line[6:]
+                                if line == '[DONE]':
+                                    continue
+                                    
+                                data = json.loads(line)
+                                if 'choices' in data and len(data['choices']) > 0:
+                                    delta = data['choices'][0].get('delta', {})
+                                    if 'content' in delta:
+                                        content = delta['content']
+                                        buffer += content
+                                        current_chunk.append(content)
+                                        current_length += len(content)
+                                        
+                                        # Process chunk when we have enough content or hit paragraph break
+                                        if current_length >= 250 or '\n\n' in content:
+                                            chunk_text = clean_text_for_tts(''.join(current_chunk))
+                                            if chunk_text:
+                                                # Ensure chunk ends with proper punctuation
+                                                if not chunk_text[-1] in '.!?':
+                                                    chunk_text += '.'
+                                                    
+                                                async with session.post(
+                                                    KOKORO_URL,
+                                                    headers={"Content-Type": "application/json"},
+                                                    json={
+                                                        "text": chunk_text,
+                                                        "voice": "af_bella",
+                                                        "speed": 1.0
+                                                    }
+                                                ) as tts_response:
+                                                    if tts_response.status == 200:
+                                                        audio_content = await tts_response.read()
+                                                        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+                                                        temp_file.write(audio_content)
+                                                        temp_file.close()
+                                                        
+                                                        yield json.dumps({
+                                                            "type": "update",
+                                                            "text": chunk_text,
+                                                            "audio_url": f"/api/audio/{os.path.basename(temp_file.name)}"
+                                                        })
+                                            
+                                            current_chunk = []
+                                            current_length = 0
+                            except json.JSONDecodeError:
+                                continue
+                    
+                    # Handle remaining text
+                    if current_chunk:
+                        chunk_text = clean_text_for_tts(''.join(current_chunk))
+                        if chunk_text:
+                            if not chunk_text[-1] in '.!?':
+                                chunk_text += '.'
+                                
+                            async with session.post(
+                                KOKORO_URL,
+                                headers={"Content-Type": "application/json"},
+                                json={
+                                    "text": chunk_text,
+                                    "voice": "af_bella",
+                                    "speed": 1.0
+                                }
+                            ) as tts_response:
+                                if tts_response.status == 200:
+                                    audio_content = await tts_response.read()
+                                    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+                                    temp_file.write(audio_content)
+                                    temp_file.close()
+                                    
+                                    yield json.dumps({
+                                        "type": "update",
+                                        "text": chunk_text,
+                                        "audio_url": f"/api/audio/{os.path.basename(temp_file.name)}"
+                                    })
+                    
+                    # Send completion event
+                    yield json.dumps({"type": "done"})
+                    
+        except Exception as e:
+            logging.error(f"Error in stream_chat_response: {str(e)}")
+            yield json.dumps({"type": "error", "message": str(e)})
+
+    @app.post("/api/chat/stream")
+    async def chat_stream(request: ChatRequest):
+        """Stream both text and audio responses using server-sent events."""
+        return EventSourceResponse(stream_chat_response(request))
+
+    @app.get("/api/audio/{filename}")
+    async def get_audio(filename: str):
+        try:
+            file_path = os.path.join(tempfile.gettempdir(), filename)
+            if not os.path.exists(file_path):
+                raise HTTPException(status_code=404, detail="Audio file not found")
+            return FileResponse(file_path, media_type="audio/wav")
+        except Exception as e:
+            raise HTTPException(status_code=404, detail=str(e))
+
+  requirements.txt: |
+    fastapi>=0.100.0
+    uvicorn>=0.23.0
+    pydantic>=2.0.0
+    python-multipart>=0.0.6
+    requests>=2.28.1
+    aiohttp>=3.8.0
+    sse-starlette>=1.6.0
+    sseclient-py>=1.7.2
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: integration-service
+  namespace: inference
+  labels:
+    app: integration-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: integration-service
+  template:
+    metadata:
+      labels:
+        app: integration-service
+    spec:
+      containers:
+      - name: integration
+        image: python:3.9-slim
+        command: 
+        - /bin/bash
+        - -c
+        - |
+          cd /app && \
+          pip install -r requirements.txt && \
+          python -m uvicorn app:app --host 0.0.0.0 --port 5000
+        ports:
+        - containerPort: 5000
+          name: http
+        env:
+        - name: DEEPSEEK_URL
+          value: "http://deepseek-vllm:8000/v1/chat/completions"
+        - name: KOKORO_URL
+          value: "http://kokoro-tts:8080/tts" 
+        resources:
+          limits:
+            cpu: "1"
+            memory: "2G"
+          requests:
+            cpu: "500m"
+            memory: "1G"
+        volumeMounts:
+        - name: app-code
+          mountPath: /app
+      volumes:
+      - name: app-code
+        configMap:
+          name: integration-code
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: integration-service
+  namespace: inference
+  labels:
+    app: integration-service
+spec:
+  type: ClusterIP
+  selector:
+    app: integration-service
+  ports:
+  - port: 80
+    targetPort: 5000
+    name: http 

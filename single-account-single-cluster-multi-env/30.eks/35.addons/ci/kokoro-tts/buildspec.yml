@@ -1,0 +1,34 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.9
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - REPOSITORY_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/kokoro-tts
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - IMAGE_TAG=${COMMIT_HASH:=latest}
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Building the Docker image...
+      - cd $CODEBUILD_SRC_DIR/guidance-for-automated-provisioning-of-application-ready-amazon-eks-clusters/single-account-single-cluster-multi-env/30.eks/35.addons/app_example/kubecon/examples/deepseek-kokoro || cd $CODEBUILD_SRC_DIR/examples/deepseek-kokoro
+      - docker build -t $REPOSITORY_URI:latest -t $REPOSITORY_URI:$IMAGE_TAG -f Dockerfile.kokoro-tts .
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing the Docker image...
+      - docker push $REPOSITORY_URI:latest
+      - docker push $REPOSITORY_URI:$IMAGE_TAG
+      - echo Writing image definitions file...
+      - echo "{\"ImageURI\":\"$REPOSITORY_URI:$IMAGE_TAG\"}" > imageDefinitions.json
+
+artifacts:
+  files:
+    - imageDefinitions.json
+    - examples/deepseek-kokoro/app_manifest.yaml
+    - examples/deepseek-kokoro/kokoro-tts.yaml
+    - examples/deepseek-kokoro/values.yaml 
