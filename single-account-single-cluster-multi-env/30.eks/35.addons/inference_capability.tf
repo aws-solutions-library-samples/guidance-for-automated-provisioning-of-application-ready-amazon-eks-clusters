@@ -30,7 +30,7 @@ locals {
 
 # Deploy the NVIDIA device plugin to support GPU instances
 resource "helm_release" "nvidia_device_plugin" {
-  count      = local.inference_enabled ? 1 : 0
+  count      = local.inference_enabled && !local.eks_auto_mode ? 1 : 0
   name       = "nvidia-device-plugin"
   repository = "https://nvidia.github.io/k8s-device-plugin"
   chart      = "nvidia-device-plugin"
@@ -62,7 +62,7 @@ resource "helm_release" "nvidia_device_plugin" {
 
 # Deploy DCGM exporter for GPU metrics
 resource "helm_release" "dcgm_exporter" {
-  count      = local.inference_enabled ? 1 : 0
+  count      = local.inference_enabled && !local.eks_auto_mode ? 1 : 0
   name       = "dcgm-exporter"
   repository = "https://nvidia.github.io/dcgm-exporter/helm-charts"
   chart      = "dcgm-exporter"

@@ -1,5 +1,5 @@
 ---
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: gpu-nodepool
@@ -11,6 +11,8 @@ spec:
         instanceType: "gpu"
     spec:
       nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
         name: gpu
       taints:
         - key: "nvidia.com/gpu"
@@ -40,12 +42,13 @@ spec:
     memory: "1000Gi"
     nvidia.com/gpu: "100"
 ---
-apiVersion: karpenter.k8s.aws/v1beta1
+apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
   name: gpu
 spec:
-  amiFamily: AL2
+  amiSelectorTerms:
+    - alias: al2@latest
   role: ${role}
   subnetSelectorTerms:
     - tags:
@@ -59,7 +62,7 @@ spec:
   tags:
     karpenter.sh/discovery: ${cluster_name}
     Environment: ${environment}
-    provisioned-by: "aws-samples/terraform-workloads-ready-eks-accelerator"
+    provisioned-by: "aws-solutions-library-samples/guidance-for-automated-provisioning-of-application-ready-amazon-eks-clusters"
   blockDeviceMappings:
     - deviceName: /dev/xvda
       ebs:

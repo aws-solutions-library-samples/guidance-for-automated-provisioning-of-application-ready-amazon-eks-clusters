@@ -207,18 +207,19 @@ spec:
         value: present
         effect: NoSchedule
       nodeSelector:
-        karpenter.sh/nodepool: gpu-nodepool
+        owner: "data-engineer"
+        instanceType: "gpu"
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
             - matchExpressions:
-              - key: karpenter.k8s.aws/instance-category
+              - key: eks.amazonaws.com/instance-category
                 operator: In
                 values: ["g"]
-              - key: karpenter.k8s.aws/instance-family
-                operator: In
-                values: ["g5", "g6"]
+              - key: eks.amazonaws.com/instance-generation
+                operator: Gt
+                values: ["4"]
       volumes:
       - name: models
         emptyDir: {}

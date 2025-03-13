@@ -50,3 +50,4 @@ global-backend-config
 # General
 .DS_Store
 .idea/
+single-account-single-cluster-multi-env/30.eks/35.addons/app_example/test_outputs/*
