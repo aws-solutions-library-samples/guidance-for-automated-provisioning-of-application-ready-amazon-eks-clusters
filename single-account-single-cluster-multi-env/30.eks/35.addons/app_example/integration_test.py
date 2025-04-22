@@ -1,318 +1,192 @@
-import requests
-import json
-import time
-import os
-import wave
 import logging
-from typing import Dict, Optional, Generator
-from datetime import datetime
-import subprocess
-import platform
-import sseclient
+import json
+import aiohttp
+import asyncio
+from typing import List, Dict
+import sounddevice as sd
+import soundfile as sf
+import tempfile
+import os
 
-logging.basicConfig(level=logging.INFO)
+# Set up logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
-
-def play_notification(success: bool = True):
-    """Play a notification sound using system sound."""
-    if platform.system() == "Darwin":  # macOS
-        sound = "Glass" if success else "Basso"
-        subprocess.run(["afplay", f"/System/Library/Sounds/{sound}.aiff"])
-    else:  # Linux/Windows - print ASCII bell character
-        print("\a")
-
-def play_audio_file(file_path: str):
-    """Play an audio file using system audio player."""
-    logger.info(f"Playing audio file: {file_path}")
-    if platform.system() == "Darwin":  # macOS
-        subprocess.run(["afplay", file_path])
-    elif platform.system() == "Linux":
-        subprocess.run(["aplay", file_path])
-    elif platform.system() == "Windows":
-        subprocess.run(["start", file_path], shell=True)
-    else:
-        logger.warning(f"Audio playback not supported on {platform.system()}")
 
 class IntegrationTest:
     def __init__(self, base_url: str = "http://localhost:8080"):
         self.base_url = base_url.rstrip('/')
+        self.session = None
+        self.temp_dir = tempfile.mkdtemp()
         self.test_results = []
-        self.test_dir = "test_outputs"
-        os.makedirs(self.test_dir, exist_ok=True)
 
-    def _make_request(self, endpoint: str, method: str = "GET", data: Optional[Dict] = None, stream: bool = False) -> requests.Response:
-        url = f"{self.base_url}{endpoint}"
+    async def __aenter__(self):
+        self.session = aiohttp.ClientSession()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self.session:
+            await self.session.close()
+        # Cleanup temp directory
         try:
-            if method == "GET":
-                response = requests.get(url, stream=stream)
-            elif method == "POST":
-                response = requests.post(url, json=data, stream=stream)
-            else:
-                raise ValueError(f"Unsupported HTTP method: {method}")
-            
-            return response
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Request failed: {str(e)}")
-            raise
+            for file in os.listdir(self.temp_dir):
+                os.remove(os.path.join(self.temp_dir, file))
+            os.rmdir(self.temp_dir)
+        except Exception as e:
+            logger.warning(f"Failed to cleanup temp directory: {e}")
 
-    def test_chat_endpoint(self, input_text: str, streaming: bool = True) -> Dict:
-        """Test the chat endpoint and return the response."""
-        logger.info(f"Testing {'streaming' if streaming else 'regular'} chat endpoint with input: {input_text}")
-        
-        start_time = time.time()
-        
-        if streaming:
-            return self.test_streaming_chat(input_text)
-        else:
-            return self.test_regular_chat(input_text)
+    async def play_audio(self, audio_url: str) -> bool:
+        """Download and play audio from URL."""
+        try:
+            # Download the audio file
+            async with self.session.get(f"{self.base_url}{audio_url}") as response:
+                if response.status != 200:
+                    logger.error(f"Failed to download audio: {response.status}")
+                    return False
 
-    def test_regular_chat(self, input_text: str) -> Dict:
-        """Test the regular (non-streaming) chat endpoint."""
-        response = self._make_request(
-            "/api/chat",
-            method="POST",
-            data={"input": input_text}
-        )
-        duration = time.time() - start_time
+                # Save to temporary file
+                temp_path = os.path.join(self.temp_dir, "temp_audio.wav")
+                with open(temp_path, "wb") as f:
+                    f.write(await response.read())
 
-        result = {
-            "test_name": "chat_endpoint",
-            "input": input_text,
-            "status_code": response.status_code,
-            "duration": duration,
-            "timestamp": datetime.now().isoformat()
-        }
+                # Play the audio
+                logger.info("Playing audio response...")
+                data, samplerate = sf.read(temp_path)
+                sd.play(data, samplerate)
+                sd.wait()  # Wait until audio is finished playing
 
-        if response.status_code == 200:
-            result["success"] = True
-            result["response"] = response.json()
-            logger.info(f"Chat response received: {result['response']}")
-            
-            # If we got an audio URL, test it immediately
-            if "audio_url" in result["response"]:
-                audio_result = self.test_audio_endpoint(result["response"]["audio_url"])
-                result["audio_result"] = audio_result
-        else:
-            result["success"] = False
-            result["error"] = response.text
-            logger.error(f"Chat request failed: {response.text}")
+                # Clean up
+                os.remove(temp_path)
+                return True
 
-        self.test_results.append(result)
-        return result
+        except Exception as e:
+            logger.error(f"Error playing audio: {e}")
+            return False
 
-    def test_streaming_chat(self, input_text: str) -> Dict:
+    async def test_chat_stream(self, message: str) -> Dict:
         """Test the streaming chat endpoint."""
-        start_time = time.time()
-        response = self._make_request(
-            "/api/chat/stream",
-            method="POST",
-            data={"input": input_text},
-            stream=True
-        )
-        
         result = {
-            "test_name": "streaming_chat_endpoint",
-            "input": input_text,
-            "status_code": response.status_code,
-            "timestamp": datetime.now().isoformat(),
-            "updates": []
+            "input": message,
+            "success": False,
+            "received_text": False,
+            "received_audio": False,
+            "error": None
         }
 
-        if response.status_code == 200:
-            try:
-                client = sseclient.SSEClient(response)
-                for event in client.events():
+        try:
+            async with self.session.post(
+                f"{self.base_url}/api/chat/stream",
+                json={"input": message},
+                headers={"Accept": "text/event-stream"}
+            ) as response:
+                if response.status != 200:
+                    error_msg = f"Request failed with status {response.status}"
+                    logger.error(error_msg)
+                    result["error"] = error_msg
+                    return result
+
+                # Process the SSE stream
+                async for line in response.content:
                     try:
-                        data = json.loads(event.data)
-                        if data["type"] == "update":
-                            logger.info(f"Received update: {data['text']}")
-                            if "audio_url" in data:
-                                audio_result = self.test_audio_endpoint(data["audio_url"])
-                                data["audio_result"] = audio_result
-                            result["updates"].append(data)
-                        elif data["type"] == "error":
-                            logger.error(f"Received error: {data['message']}")
-                            result["success"] = False
-                            result["error"] = data["message"]
-                            break
-                        elif data["type"] == "done":
+                        line = line.decode('utf-8').strip()
+                        if not line or not line.startswith('data: '):
+                            continue
+
+                        data = json.loads(line[6:])  # Remove 'data: ' prefix
+                        logger.debug(f"Received event: {data}")
+
+                        if data.get('type') == 'error':
+                            error_msg = f"Server error: {data.get('message')}"
+                            logger.error(error_msg)
+                            result["error"] = error_msg
+                            return result
+
+                        if data.get('type') == 'update':
+                            result["received_text"] = True
+                            logger.info(f"Received text: {data.get('text', '')}")
+                            if 'audio_url' in data:
+                                logger.info(f"Audio URL: {data['audio_url']}")
+                                audio_success = await self.play_audio(data['audio_url'])
+                                result["received_audio"] = audio_success
+
+                        if data.get('type') == 'done':
                             logger.info("Stream completed")
                             break
+
                     except json.JSONDecodeError as e:
-                        logger.error(f"Failed to parse SSE data: {e}")
+                        logger.warning(f"Failed to parse SSE data: {e}")
                         continue
+                    except Exception as e:
+                        error_msg = f"Error processing event: {e}"
+                        logger.error(error_msg)
+                        result["error"] = error_msg
+                        return result
 
-                result["success"] = True
-            except Exception as e:
-                result["success"] = False
-                result["error"] = str(e)
-                logger.error(f"Streaming error: {str(e)}")
-        else:
-            result["success"] = False
-            result["error"] = response.text
-            logger.error(f"Streaming request failed: {response.text}")
+                result["success"] = result["received_text"]
+                return result
 
-        result["duration"] = time.time() - start_time
-        self.test_results.append(result)
-        return result
+        except Exception as e:
+            error_msg = f"Test failed: {e}"
+            logger.error(error_msg)
+            result["error"] = error_msg
+            return result
 
-    def test_audio_endpoint(self, audio_url: str) -> Dict:
-        """Test the audio endpoint and verify the audio file."""
-        logger.info(f"Testing audio endpoint: {audio_url}")
-        
-        start_time = time.time()
-        response = self._make_request(audio_url)
-        duration = time.time() - start_time
-
-        result = {
-            "test_name": "audio_endpoint",
-            "audio_url": audio_url,
-            "status_code": response.status_code,
-            "duration": duration,
-            "timestamp": datetime.now().isoformat()
-        }
-
-        if response.status_code == 200:
-            # Save and verify audio file
-            filename = f"{self.test_dir}/test_audio_{int(time.time())}.wav"
-            with open(filename, "wb") as f:
-                f.write(response.content)
-
-            # Verify WAV file format
-            try:
-                with wave.open(filename, "rb") as wav_file:
-                    result["success"] = True
-                    result["audio_details"] = {
-                        "channels": wav_file.getnchannels(),
-                        "sample_width": wav_file.getsampwidth(),
-                        "frame_rate": wav_file.getframerate(),
-                        "frames": wav_file.getnframes(),
-                        "file_size": os.path.getsize(filename)
-                    }
-                logger.info(f"Audio file saved and verified: {filename}")
-                # Play the audio file
-                play_audio_file(filename)
-            except Exception as e:
-                result["success"] = False
-                result["error"] = f"Invalid WAV file: {str(e)}"
-                logger.error(f"Audio file verification failed: {str(e)}")
-        else:
-            result["success"] = False
-            result["error"] = response.text
-            logger.error(f"Audio request failed: {response.text}")
-
-        self.test_results.append(result)
-        return result
-
-    def run_full_integration_test(self, test_cases: list, streaming: bool = True) -> Dict:
-        """Run a complete integration test with multiple test cases."""
-        overall_results = {
+    async def run_tests(self, test_cases: List[str]) -> Dict:
+        """Run all test cases and return detailed results."""
+        results = {
             "total_tests": len(test_cases),
             "successful_tests": 0,
             "failed_tests": 0,
-            "test_cases": [],
-            "streaming_mode": streaming
+            "success_rate": 0.0,
+            "test_cases": []
         }
 
         for test_case in test_cases:
-            logger.info(f"\nRunning test case: {test_case}")
+            logger.info(f"\nTesting with input: {test_case}")
+            test_result = await self.test_chat_stream(test_case)
+            results["test_cases"].append(test_result)
             
-            # Test chat endpoint
-            chat_result = self.test_chat_endpoint(test_case, streaming=streaming)
-            
-            # For streaming mode, success is based on all updates succeeding
-            if streaming:
-                test_success = chat_result["success"] and all(
-                    update.get("audio_result", {}).get("success", False)
-                    for update in chat_result.get("updates", [])
-                    if "audio_url" in update
-                )
+            if test_result["success"]:
+                results["successful_tests"] += 1
+                logger.info("✓ Test passed")
+                if test_result["received_audio"]:
+                    logger.info("✓ Audio playback successful")
             else:
-                # For regular mode, success is based on chat and audio both working
-                test_success = chat_result["success"]
-                if "audio_result" in chat_result:
-                    test_success = test_success and chat_result["audio_result"]["success"]
-
-            if test_success:
-                overall_results["successful_tests"] += 1
-                play_notification(True)  # Success sound
-            else:
-                overall_results["failed_tests"] += 1
-                play_notification(False)  # Failure sound
-
-            overall_results["test_cases"].append({
-                "input": test_case,
-                "chat_result": chat_result
-            })
-
-            # Add a small delay between test cases
-            time.sleep(1)
+                results["failed_tests"] += 1
+                logger.error("✗ Test failed")
+                if test_result["error"]:
+                    logger.error(f"Error: {test_result['error']}")
 
         # Calculate success rate
-        overall_results["success_rate"] = (
-            overall_results["successful_tests"] / overall_results["total_tests"]
-            if overall_results["total_tests"] > 0 else 0
-        )
+        results["success_rate"] = (results["successful_tests"] / results["total_tests"]) * 100
 
-        return overall_results
+        # Print summary
+        logger.info("\nTest Summary:")
+        logger.info(f"Total Tests: {results['total_tests']}")
+        logger.info(f"Successful: {results['successful_tests']}")
+        logger.info(f"Failed: {results['failed_tests']}")
+        logger.info(f"Success Rate: {results['success_rate']:.2f}%")
 
-    def save_results(self, results: Dict):
-        """Save test results to a JSON file."""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{self.test_dir}/test_results_{timestamp}.json"
-        
-        with open(filename, "w") as f:
-            json.dump(results, f, indent=2)
-        
-        logger.info(f"Test results saved to {filename}")
+        return results
 
-def main():
-    # Test cases with various scenarios
+async def main():
+    # Test cases
     test_cases = [
-        #"I want you to write an essay about the importance of AI in the future",
-        "Explain how a rainbow forms in simple terms.",
-        "Tell me a short story about a brave knight.",
-        "What is the capital of France?",
-        "Generate a haiku about spring.",
-        
+        "Two cloud architects from HDI are looking if they can get rid of the platform team and use EKS Auto mode",
+        "Tell me a short story about a brave knight."
     ]
 
-    # Initialize and run tests
-    test = IntegrationTest()
-    
-    try:
-        logger.info("Starting integration tests...")
-        # Run streaming tests first
-        logger.info("\nRunning streaming tests...")
-        streaming_results = test.run_full_integration_test(test_cases, streaming=True)
-        test.save_results(streaming_results)
+    logger.info("Starting integration tests...")
+    async with IntegrationTest() as test:
+        results = await test.run_tests(test_cases)
         
-        # Then run regular tests
-        logger.info("\nRunning regular tests...")
-        regular_results = test.run_full_integration_test(test_cases, streaming=False)
-        test.save_results(regular_results)
-        
-        # Print summary for both
-        logger.info("\nStreaming Test Summary:")
-        logger.info(f"Total Tests: {streaming_results['total_tests']}")
-        logger.info(f"Successful: {streaming_results['successful_tests']}")
-        logger.info(f"Failed: {streaming_results['failed_tests']}")
-        logger.info(f"Success Rate: {streaming_results['success_rate']*100:.2f}%")
-        
-        logger.info("\nRegular Test Summary:")
-        logger.info(f"Total Tests: {regular_results['total_tests']}")
-        logger.info(f"Successful: {regular_results['successful_tests']}")
-        logger.info(f"Failed: {regular_results['failed_tests']}")
-        logger.info(f"Success Rate: {regular_results['success_rate']*100:.2f}%")
-        
-        # Play final summary sound based on both test sets
-        overall_success = (streaming_results['failed_tests'] + regular_results['failed_tests']) == 0
-        play_notification(overall_success)
-        
-    except Exception as e:
-        logger.error(f"Test execution failed: {str(e)}")
-        play_notification(False)  # Error sound
-        raise
+        if results["success_rate"] == 100:
+            logger.info("\n✓ All tests passed successfully!")
+        else:
+            logger.error("\n✗ Some tests failed")
+            exit(1)
 
 if __name__ == "__main__":
-    main() 
+    asyncio.run(main()) 

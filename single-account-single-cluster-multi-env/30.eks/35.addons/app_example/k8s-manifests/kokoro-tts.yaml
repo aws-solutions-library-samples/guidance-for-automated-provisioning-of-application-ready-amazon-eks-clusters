@@ -173,7 +173,7 @@ spec:
     spec:
       containers:
       - name: tts
-        image: 240484791744.dkr.ecr.eu-central-1.amazonaws.com/kokoro-tts:latest
+        image: public.ecr.aws/g0u5j7e0/kubecon/kokoro:latest
         env:
         - name: MODEL_ID
           value: "hexgrad/Kokoro-82M"
