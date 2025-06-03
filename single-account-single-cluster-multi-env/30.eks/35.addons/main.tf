@@ -4,7 +4,7 @@ data "aws_caller_identity" "current" {}
 
 module "eks_blueprints_addons" {
   source  = "aws-ia/eks-blueprints-addons/aws"
-  version = "~> 1.16.2"
+  version = "~> 1.21.0"
 
   cluster_name      = data.terraform_remote_state.eks.outputs.cluster_name
   cluster_endpoint  = data.terraform_remote_state.eks.outputs.cluster_endpoint

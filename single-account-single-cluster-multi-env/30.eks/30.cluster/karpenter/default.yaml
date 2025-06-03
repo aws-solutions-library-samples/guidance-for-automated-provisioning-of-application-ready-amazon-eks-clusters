@@ -41,7 +41,7 @@ metadata:
   name: default
 spec:
   amiSelectorTerms:
-    - alias: al2@latest
+    - alias: al2023@latest
   role: ${role}
   subnetSelectorTerms:
     - tags:

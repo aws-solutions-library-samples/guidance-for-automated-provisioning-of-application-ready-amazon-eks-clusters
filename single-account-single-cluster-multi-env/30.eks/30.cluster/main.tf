@@ -16,7 +16,7 @@ data "aws_iam_session_context" "current" {
 #tfsec:ignore:aws-eks-enable-control-plane-logging
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "~> 20.31.3"
+  version = "~> 20.36.0"
 
   cluster_name                   = local.cluster_name
   cluster_version                = local.cluster_version
@@ -167,7 +167,7 @@ module "eks" {
   # managed node group for base EKS addons such as Karpenter
   eks_managed_node_group_defaults = {
     instance_types = ["m6g.large"]
-    ami_type       = "AL2_ARM_64"
+    ami_type       = "AL2023_ARM_64_STANDARD"
     iam_role_additional_policies = {
       SSM = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
     }
@@ -180,6 +180,10 @@ module "eks" {
       max_size                 = 8
       desired_size             = 2
       min_size                 = 2
+
+      labels = {
+        "role" : "system"
+      }
 
       taints = {
         critical_addons = {

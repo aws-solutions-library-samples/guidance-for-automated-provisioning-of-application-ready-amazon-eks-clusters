@@ -11,7 +11,7 @@ shared_config = {
 }
 
 cluster_config = {
-  kubernetes_version  = "1.29"
+  kubernetes_version  = "1.33"
   eks_auto_mode       = true // When set to true, all other self-managed addons are set to false
   private_eks_cluster = false
   capabilities = {

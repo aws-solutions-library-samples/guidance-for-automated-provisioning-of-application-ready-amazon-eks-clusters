@@ -9,7 +9,7 @@ shared_config = {
 }
 
 cluster_config = {
-  kubernetes_version  = "1.29"
+  kubernetes_version  = "1.33"
   eks_auto_mode       = true // When enabled, all capabilities will by false by default, unless specified otherwise
   private_eks_cluster = false
   create_mng_system   = false // CriticalAddons MNG NodeGroup
