@@ -166,3 +166,18 @@ This pattern uses Terraform Workspaces to store and retrieve environment specifi
 #### Consequences
 
 The uses of Terraform workspaces allows us to use the same IaC code and backend configuration, without changing it per environment. As this project Makefile wraps the relevant workspaces commands, if users choose to rewrite their own CLI automation, they'll need to handle workspace switching before applying per-environment configuration.
+
+### Configuring Instance Store Disks (NVMe) with RAID0
+
+#### Context
+
+We want to leverage instance store volumes for improved disks I/O performance, especially for the containerd root volume which holds container images and ephemeral storage used by containers.
+
+#### Decision
+
+Configuring instance store volumes in a RAID0 configuration using Karpenter's [instanceStorePolicy](https://karpenter.sh/docs/concepts/nodeclasses/#specinstancestorepolicy) in the default EC2NodeClass. This configuration will be applied to appropriate EC2 instance types that offer NVMe instance store volumes.
+
+#### Consequences
+
+Implementing RAID0 with instance store volumes will significantly boost I/O performance for containerd and ephemeral storage, potentially improving container start-up times and overall application responsiveness.   
+This configuration maximizes the use of included instance store volumes, reducing EBS dependency and reducing costs.    
