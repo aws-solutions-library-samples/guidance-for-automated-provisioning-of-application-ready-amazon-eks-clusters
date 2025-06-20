@@ -42,6 +42,7 @@ metadata:
 spec:
   amiSelectorTerms:
     - alias: al2023@latest
+  instanceStorePolicy: RAID0
   role: ${role}
   subnetSelectorTerms:
     - tags:
