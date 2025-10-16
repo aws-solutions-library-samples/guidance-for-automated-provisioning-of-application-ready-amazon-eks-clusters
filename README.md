@@ -6,8 +6,10 @@
   - [Features and Benefits](#features-and-benefits)
   - [Use cases](#use-cases) 
   - [Architecture](#architecture-overview)
-  - [AWS services in this Guidance](#aws-services-in-this-guidance)
+  - [AWS Services in this Guidance](#aws-services-in-this-guidance)
   - [Cost](#cost)
+  - [Security](#security)
+  - [Supported AWS regions](#supported-aws-regions)
 2. [Prerequisites](#prerequisites)
   - [Operating System](#operating-system)
   - [Third-Party Tools](#third-party-tools)
@@ -21,9 +23,9 @@ The Guidance for Automated Provisioning of Application-Ready Amazon EKS Clusters
 This guidance addresses the following key points:
 
 - Provides a simplified process for setting up an application-ready EKS cluster.
-- Includes pre-configured tools and add-ons to support essential capabilities.
-- Aims to reduce the learning curve associated with deploying an application-ready EKS cluster.
-- Allows users to focus on deploying and testing applications rather than cluster setup.
+- Includes pre-configured tools and add-ons to support essential capabilities, including an option for automated EKS management with [EKS AutoMode](https://aws.amazon.com/eks/auto-mode/)
+- Aims to reduce the learning curve associated with deploying a production-ready EKS cluster.
+- Allows users to focus on deploying and testing applications rather than EKS cluster setup.
 
 The motivation behind this project is to accelerate and simplify the process of setting up a cluster that is ready to support applications and workloads. We've heard from customers that there can be a learning curve associated with deploying your first application ready EKS cluster. This project aims to simplify the undifferentiated lifting, allowing you to focus on deploying and testing your applications.
 
@@ -33,7 +35,7 @@ The motivation behind this project is to accelerate and simplify the process of 
 
 2. **Ready-to-Use Configuration**: Receive a pre-configured cluster with opinionated yet customizable tooling, accelerating the setup process and reducing the learning curve for containerization beginners.
 
-3. **Environment-Specific Customization**: Easily tailor cluster configurations for different environments (dev, staging, prod), enabling flexible and consistent multi-environment setups.
+3. **Environment-Specific Customization**: Easily tailor cluster configurations for different environments (e.g. `dev`, `staging`, `prod`, `automode`), enabling flexible and consistent multi-environment setups.
 
 4. **Integrated Tooling**: Benefit from pre-integrated tools and add-ons that support core capabilities like Autoscaling, Observability, Networking, and Security, reducing the time and expertise needed to set up a production-ready cluster.
 
@@ -111,7 +113,7 @@ This architecture is designed to provide a secure, scalable, and easily manageab
 
 8. Amazon EKS cluster(s) with critical add-ons, configured managed Observability stack and RBAC based security mapped to IAM roles is available for workload deployment and its Kubernetes API is exposed via an [AWS Network Load Balancer](https://aws.amazon.com/elasticloadbalancing/network-load-balancer/).
 
-### AWS services in this Guidance
+### AWS Services in this Guidance
 
 | **AWS Service** | **Role** | **Description** |
 |-----------------|----------|-----------------|
@@ -210,8 +212,25 @@ This guidance implements several security best practices and AWS services to enh
 ## Supported AWS Regions
 
 The core components of the Guidance for Automated Provisioning of Application-Ready Amazon EKS Clusters are available in all AWS Regions where Amazon EKS is supported.
-
 The observability components of this guidance use Amazon Managed Service for Prometheus (AMP) and Amazon Managed Grafana (AMG). These services are available in the following regions:
+<!--
+| Region Name | Region Code |
+|-------------|-------------|
+| US East (N. Virginia) | us-east-1 |
+| US East (Ohio) | us-east-2 |
+| US West (Oregon) | us-west-2 |
+| Asia Pacific (Mumbai) | ap-south-1 |
+| Asia Pacific (Seoul) | ap-northeast-2 |
+| Asia Pacific (Singapore) | ap-southeast-1 |
+| Asia Pacific (Sydney) | ap-southeast-2 |
+| Asia Pacific (Tokyo) | ap-northeast-1 |
+| Europe (Frankfurt) | eu-central-1 |
+| Europe (Ireland) | eu-west-1 |
+| Europe (London) | eu-west-2 |
+| Europe (Paris) | eu-west-3 |
+| Europe (Stockholm) | eu-north-1 |
+| South America (São Paulo) | sa-east-1 |
+-->
 
 | Region Name | Region Code |
 |-------------|-------------|
@@ -229,6 +248,10 @@ The observability components of this guidance use Amazon Managed Service for Pro
 | Europe (Paris) | eu-west-3 |
 | Europe (Stockholm) | eu-north-1 |
 | South America (São Paulo) | sa-east-1 |
+| Greater China (Beijing) | cn-north-1 |
+| Greater China (Ningxia) | cn-northwest-1 |
+| GovCloud region (US-west) | us-gov-west-1 |
+| GovCloud region (US-east) | us-gov-east-1 | 
 
 
 ### Regions Supporting Core Components Only
@@ -239,7 +262,7 @@ For the most current availability of AWS services by Region, refer to the [AWS R
 
 Note: If you deploy this guidance into a region where AMP and/or AMG are not available, you can disable the OSS observability tooling during deployment. This allows you to use the core components of the guidance without built-in observability features.
 
-### Quotas
+### Service Quotas
 
 **NOTICE**
 Service quotas, also referred to as limits, are the maximum number of service resources or operations for your AWS account.
@@ -288,7 +311,7 @@ For further examples, refer to [Dynamic Object and Rule Extensions for AWS Netwo
 -->
 ### Deployment Instructions
 
-Please refer to [Full Implementation Guide](https://aws-solutions-library-samples.github.io/compute/automated-provisioning-of-application-ready-amazon-eks-clusters.html) for detailed instructions for all deployment options.
+Please refer to [Full Implementation Guide](https://aws-solutions-library-samples.github.io/compute/automated-provisioning-of-application-ready-amazon-eks-clusters.html) for detailed instructions for all deployment, confogursation as well as uninstallation options.
 
 ## License
 
