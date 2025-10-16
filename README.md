@@ -1,8 +1,26 @@
 # Guidance for Automated Provisioning of Application-Ready Amazon EKS Clusters
 
 ## Table of Contents
+<!--
+- [Overview](#overview)
+- [Architecture](#architecture)
+- [Architecture Steps](#architecture-steps)
+- [Plan Your Deployment](#plan-your-deployment)
+  - [Cost](#cost)
+  - [Sample Cost Table](#sample-cost-table)
+  - [Security](#security)
+  - [Supported AWS regions](#supported-aws-regions)
+  - [Service Quotas](#service-quotas)
+  - [Third party dependencies disclaimer](#third-party-dependencies-disclaimer)
+- [Quick Start Guide](#quick-start-guide)
+  - [Important Setup Instructions](#️-important-setup-instructions)    
+- [Important Notes](#important-notes)
+    - [Architecture Benefits](#-architecture-benefits)
+    - [Key Improvements](#-key-improvements)
+- [Notices](#notices)
+-->
 
-1. [Overview](#overview)
+- [Overview](#overview)
   - [Features and Benefits](#features-and-benefits)
   - [Use cases](#use-cases) 
   - [Architecture](#architecture-overview)
@@ -10,11 +28,12 @@
   - [Cost](#cost)
   - [Security](#security)
   - [Supported AWS regions](#supported-aws-regions)
-2. [Prerequisites](#prerequisites)
+- [Prerequisites](#prerequisites)
   - [Operating System](#operating-system)
   - [Third-Party Tools](#third-party-tools)
-3. [Deployment Steps](#deploy-the-guidance)
-4. [License](#license)
+- [Deployment Steps](#deploy-the-guidance)
+- [License](#license)
+- [Notices](#notices)
 
 ## Overview
 
@@ -314,6 +333,8 @@ For further examples, refer to [Dynamic Object and Rule Extensions for AWS Netwo
 Please refer to [Full Implementation Guide](https://aws-solutions-library-samples.github.io/compute/automated-provisioning-of-application-ready-amazon-eks-clusters.html) for detailed instructions for all deployment, confogursation as well as uninstallation options.
 
 ## License
+This library is licensed under the MIT-0 License. See the [LICENSE](./LICENSE) file.
 
-This library is licensed under the MIT-0 License. See the LICENSE file.
+## Notices 
 
+*Customers are responsible for making their own independent assessment of the information in this Guidance. This Guidance: (a) is for informational purposes only, (b) represents AWS current product offerings and practices, which are subject to change without notice, and (c) does not create any commitments or assurances from AWS and its affiliates, suppliers or licensors. AWS products or services are provided “as is” without warranties, representations, or conditions of any kind, whether express or implied. AWS responsibilities and liabilities to its customers are controlled by AWS agreements, and this Guidance is not part of, nor does it modify, any agreement between AWS and its customers.*
